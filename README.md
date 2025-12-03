@@ -14,3 +14,8 @@ pip install -r requirements.txt
 ```
 
 # Liste des trucs à faire
+
+- Tester le pipeline en ligne de commande
+- Faire une page web qui demande une template (en excel) et une liste de séquences de plasmide et une liste de correspondance (bouton upload -> les fichiers apparaissent)
+- Faire une page pour créer une template
+- Ajouter des tests unitaires : Vérifier que les plasmides en .gb sont dans la template associée

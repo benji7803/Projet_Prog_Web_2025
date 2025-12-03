@@ -2,3 +2,7 @@
 Projet Programmation Web, AMI2B
 
 # Wesh les BG
+
+*Bonjour*
+
+# Liste des trucs à faire

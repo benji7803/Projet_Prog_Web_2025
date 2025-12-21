@@ -1,0 +1,9 @@
+nav {
+    padding: 1rem;
+    background-color: #0a6eaa;
+    color: white;
+    font-size: 2.5rem;
+    display: flex;
+    justify-content: center; 
+    position: relative; 
+}

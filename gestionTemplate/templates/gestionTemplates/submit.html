@@ -1,9 +1,38 @@
-{% extends 'layout.html'%}
+{% extends 'layout.html' %}
 
 {% block title %}
     Submit
 {% endblock %}
 
 {% block content %}
-    <h1>Submit a template !</h1>
+<h1>Submit a template !</h1>
+
+{% if message %}
+    <p style="font-weight: bold;">{{ message }}</p>
+{% endif %}
+
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <label for="file-upload">Upload de fichier :</label>
+    <input type="file" id="file-upload" name="uploaded_file" accept=".xlsx">
+    
+    <button type="submit">Vérifier le fichier</button>
+</form>
+
+<hr>
+
+{% if data_html %}
+    <h3>Contenu du fichier :</h3>
+    <div style="overflow-x: auto;">
+        {{ data_html|safe }}
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+        <label for="file-upload">Fichier gb :</label>
+        <input type="file" id="file-upload" name="gb_file">
+    </form>
+{% endif %}
+
 {% endblock %}

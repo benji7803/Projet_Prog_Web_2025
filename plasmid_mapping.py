@@ -18,6 +18,7 @@ FEATURE_COLORS = {
     "default": "#b3b3b3"
 }
 
+
 def seqfeature_to_graphic(f):
     if f.type == "source":
         return None
@@ -33,6 +34,7 @@ def seqfeature_to_graphic(f):
         color=color,
         label=label
     )
+
 
 features = [seqfeature_to_graphic(f) for f in record.features if seqfeature_to_graphic(f) is not None]
 
@@ -51,7 +53,3 @@ ax2.set_title("Carte circulaire du plasmide", fontsize=14)
 plt.tight_layout()
 ax2.figure.savefig("plasmide_carte_circulaire.png", dpi=300)
 plt.close(ax2.figure)
-
-
-
-

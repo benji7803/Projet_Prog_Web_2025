@@ -1,0 +1,39 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h2>Mes Templates de Campagne</h2>
+<a href="{% url 'templates:create_template' %}" class="btn btn-success mb-3">+ Nouveau Template</a>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Nom</th>
+            <th>Fichier actuel</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in templates %}
+        <tr>
+            <td>{{ t.name }}</td>
+            <td>{{ t.filename }}</td>
+            <td>
+                <a href="{% url 'templates:download_template' t.id %}" class="btn btn-sm btn-info">
+                    📥 Télécharger
+                </a>
+                
+                <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-sm btn-warning">
+                    ✏️ Modifier
+                </a>
+                
+                <a href="#" class="btn btn-sm btn-primary">
+                    🚀 Simuler
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">Aucun template créé.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

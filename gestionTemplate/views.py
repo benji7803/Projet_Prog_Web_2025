@@ -1,21 +1,57 @@
-from django.shortcuts import render, redirect
-from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import FileResponse
+from .models import CampaignTemplate
+from .forms import CampaignTemplateForm
 import pandas as pd
 
-# Create your views here.
+
+# Dashboard : Lister TOUS les templates (public)
+def dashboard(request):
+    templates = CampaignTemplate.objects.all().order_by('-created_at')
+    return render(request, 'gestionTemplates/dashboard.html', {'templates': templates})
 
 
-def create(request):
-    return render(request, 'gestionTemplates/create.html')
+# Création simple
+def create_template(request):
+    if request.method == 'POST':
+        form = CampaignTemplateForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('dashboard')
+    else:
+        form = CampaignTemplateForm()
+
+    return render(request, 'gestionTemplates/create_edit.html', {'form': form, 'action': 'Créer'})
+
+
+# Modification
+def edit_template(request, template_id):
+    campaign = get_object_or_404(CampaignTemplate, id=template_id)
+
+    if request.method == 'POST':
+        form = CampaignTemplateForm(request.POST, request.FILES, instance=campaign)
+        if form.is_valid():
+            form.save()
+            return redirect('dashboard')
+    else:
+        form = CampaignTemplateForm(instance=campaign)
+
+    return render(request, 'gestionTemplates/create_edit.html', {'form': form, 'action': 'Modifier'})
+
+
+# Téléchargement
+def download_template(request, template_id):
+    campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    return FileResponse(campaign.file.open(), as_attachment=True, filename=campaign.filename())
 
 
 def submit(request):
     data_html = None
     message = None
-    
+
     if request.method == "POST":
         uploaded_file = request.FILES.get('uploaded_file')
-        
+
         if not uploaded_file:
             message = "Veuillez sélectionner un fichier."
         else:
@@ -32,6 +68,6 @@ def submit(request):
                     data_html = None
 
     return render(request, "gestionTemplates/submit.html", {
-        "data_html": data_html, 
+        "data_html": data_html,
         "message": message
     })

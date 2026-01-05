@@ -4,7 +4,7 @@ from Bio import SeqIO
 from dna_features_viewer import BiopythonTranslator, GraphicFeature, GraphicRecord, CircularGraphicRecord
 import matplotlib.pyplot as plt
 
-record = SeqIO.read("data_web/{X}/{Y}.gb", "genbank")
+record = SeqIO.read("data_web/pMISC/pCDE067.gb", "genbank")
 
 # Couleurs selon le type de feature
 FEATURE_COLORS = {

@@ -13,10 +13,14 @@
 </head>
 <body>
     <nav>
-    <a href="{% url 'templates:dashboard' %}" title="Mes Campagnes">📂 Mes Templates</a> |
-    
-    <a href="{% url 'templates:create_template' %}" title="Créer template">🆕 Nouveau</a> |
-    
+        <a href="{% url 'templates:dashboard' %}" title="Mes Campagnes">📂 Mes Templates</a> | 
+        <a href="{% url 'templates:create_template' %}" title="Créer template">🆕 Nouveau</a> |
+        {% if user.is_authenticated %}
+            <a href="{% url 'users:logout' %}" title="Déconnexion">🔓</a>
+        {% else %}
+            <a href="{% url 'users:register' %}" title="Inscription">🚀</a> |
+            <a href="{% url 'users:login' %}" title="Connexion">🔒</a>
+        {% endif %}
     </nav>
 
     <main>

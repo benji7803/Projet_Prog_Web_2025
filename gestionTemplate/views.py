@@ -17,11 +17,11 @@ def create_template(request):
         form = CampaignTemplateForm(request.POST, request.FILES)
         if form.is_valid():
             form.save()
-            return redirect('dashboard')
+            return redirect('/template/dashboard')
     else:
         form = CampaignTemplateForm()
 
-    return render(request, 'gestionTemplates/create_edit.html', {'form': form, 'action': 'Créer'})
+    return render(request, 'gestionTemplates/create_edit.html', {'form': form})
 
 
 # Modification

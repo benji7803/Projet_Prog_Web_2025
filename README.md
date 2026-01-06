@@ -23,3 +23,4 @@ pip install -r requirements.txt
 
 - Améliorer la template layout.html et le css pour faire une belle navbar et un site correct
 - Ajouter des tests unitaires : Vérifier que les plasmides en .gb sont dans la template associée (à modifier)
+- Ajouter la simulation d'une campagne par un utilisateur non connecté

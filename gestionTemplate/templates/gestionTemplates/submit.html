@@ -23,16 +23,37 @@
 <hr>
 
 {% if data_html %}
-    <h3>Contenu du fichier :</h3>
-    <div style="overflow-x: auto;">
-        {{ data_html|safe }}
-    </div>
 
     <form method="POST" enctype="multipart/form-data">
     {% csrf_token %}
-        <label for="file-upload">Fichier gb :</label>
-        <input type="file" id="file-upload" name="gb_file">
+        <label for="file-upload">Archive de plasmides :</label>
+        <h6>Uploader une archive de fichier .gb de vos plasmides</h6>
+        <input type="file" id="file-upload" name="plasmid_archive" accept=".zip,.tar,.tar.gz">
+        <button type="submit">Vérifier l'archive</button>
     </form>
+
+    {% if nb_plasmid %}
+        <h3>Inputs :</h3>
+        {% for name in nb_plasmid %}
+            <div>
+                <label for="{{ name }}">{{ name }}:</label> 
+                <select name="selected_file" id="file-select">
+                    <option value="">-- Choisir un fichier de l'archive --</option>
+                        {% for file in file_names %}
+                            <option value="{{ file }}">{{ file }}</option>
+                        {% endfor %}
+                </select>
+            </div>
+        {% endfor %}
+    {% endif %}
 {% endif %}
 
 {% endblock %}
+
+{% if file_names %}
+    <ul>
+    {% for name in file_names %}
+        <li>{{ name }}</li>
+    {% endfor %}
+    </ul>
+{% endif %}

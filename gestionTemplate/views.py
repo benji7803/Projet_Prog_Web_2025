@@ -8,16 +8,15 @@ from .forms import CampaignTemplateForm, AnonymousSimulationForm
 import pandas as pd
 import uuid
 import os
-import shutil
 import pathlib
 import zipfile
+import tarfile
 
 # insillyclo
 import insillyclo.data_source
 import insillyclo.observer
 import insillyclo.simulator
-import zipfile
-import tarfile
+
 
 # Dashboard : Lister TOUS les templates (public)
 def dashboard(request):
@@ -76,7 +75,7 @@ def submit(request):
                 data_html = df.to_html(classes='table table-striped', index=False)
                 data_plasmides = pd.read_excel(uploaded_file, header=8)
                 inputs_name = data_plasmides.columns[2:].tolist()
-                
+
                 # Stockage en session
                 request.session['inputs_name'] = inputs_name
                 request.session['data_html'] = data_html
@@ -88,7 +87,7 @@ def submit(request):
             # AA partir des données stockées
             inputs_name = request.session.get('inputs_name', [])
             data_html = request.session.get('data_html', None)
-            
+
             try:
                 ext = plasmid_archive.name.lower()
                 if ext.endswith('.zip'):
@@ -109,7 +108,7 @@ def submit(request):
 
 
 def simulate_anonymous(request):
-    # Chemins par défaut du serveur (Fallback)
+    # Chemins par défaut du serveur
     SERVER_DATA_DIR = pathlib.Path(settings.BASE_DIR) / 'data_science'
     DEFAULT_PRIMERS = SERVER_DATA_DIR / 'DB_primer.csv'
     DEFAULT_CONC_FILE = SERVER_DATA_DIR / 'input-plasmid-concentrations_updated.csv'
@@ -131,7 +130,7 @@ def simulate_anonymous(request):
 
                 fs = FileSystemStorage(location=SANDBOX_DIR)
 
-                # 2. GESTION DES FICHIERS REQUIS
+                # 2  GESTION DES FICHIERS REQUIS
                 # Template
                 f_template = request.FILES['template_file']
                 path_template = pathlib.Path(fs.save("campaign.xlsx", f_template))
@@ -148,9 +147,9 @@ def simulate_anonymous(request):
                 with zipfile.ZipFile(SANDBOX_DIR / path_zip, 'r') as zip_ref:
                     zip_ref.extractall(PLASMIDS_DIR)
 
-                # 3. GESTION DES FICHIERS OPTIONNELS (Logique : User > Server)
+                # 3  GESTION DES FICHIERS OPTIONNELS (Logique : User > Server)
 
-                # A. Primers
+                # A Primers
                 if form.cleaned_data['primers_file']:
                     f_primers = form.cleaned_data['primers_file']
                     path_primers = pathlib.Path(fs.save("primers.csv", f_primers))
@@ -158,7 +157,7 @@ def simulate_anonymous(request):
                 else:
                     final_primers_path = DEFAULT_PRIMERS
 
-                # B. Concentrations
+                # B Concentrations
                 if form.cleaned_data['concentration_file']:
                     f_conc = form.cleaned_data['concentration_file']
                     path_conc = pathlib.Path(fs.save("concentrations.csv", f_conc))
@@ -166,11 +165,11 @@ def simulate_anonymous(request):
                 else:
                     final_conc_path = DEFAULT_CONC_FILE
 
-                # C. Paramètres scalaires
+                # C Paramètres scalaires
                 enzyme_choice = form.cleaned_data['enzyme']
                 default_conc_val = form.cleaned_data['default_concentration'] or 200.0
 
-                # D. Paires d'amorces (Parsing du texte "P29,P30")
+                # D Paires d'amorces (Parsing du texte "P29,P30")
                 raw_pairs = form.cleaned_data['primer_pairs']
                 primer_pairs_list = []
                 if raw_pairs:
@@ -231,11 +230,11 @@ def simulate_anonymous(request):
     return render(request, 'gestionTemplates/anonymous_sim.html', {'form': form})
 
 
-# Fonction utilitaire (à garder dans views.py)
+# Fonction utilitaire
 def make_zipfile(source_dir, output_filename):
     with zipfile.ZipFile(output_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(source_dir):
             for file in files:
                 zipf.write(os.path.join(root, file), 
-                           os.path.relpath(os.path.join(root, file), 
+                           os.path.relpath(os.path.join(root, file),
                            os.path.join(source_dir, '..')))

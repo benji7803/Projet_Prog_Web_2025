@@ -39,7 +39,6 @@ class AnonymousSimulationForm(forms.Form):
     )
 
     # --- SECTION OPTIONNELLE ---
-    # Séparateur visuel dans le formulaire
 
     primers_file = forms.FileField(
         label="4. Fichier des amorces (.csv)",

@@ -18,8 +18,8 @@ pip install -r requirements.txt
 - Tester le pipeline en ligne de commande
 - Faire une page web qui demande une template (en excel) et une liste de séquences de plasmide et une liste de correspondance (bouton upload -> les fichiers apparaissent) (view submit dans l'app gestionTemplate)
 - Faire une page pour créer une template (view create dans gestionTemplate et template create.html)
-- Ajouter des tests unitaires : Vérifier que les plasmides en .gb sont dans la template associée
 
 # Fait :
 
 - Améliorer la template layout.html et le css pour faire une belle navbar et un site correct
+- Ajouter des tests unitaires : Vérifier que les plasmides en .gb sont dans la template associée (à modifier)

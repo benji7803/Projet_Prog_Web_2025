@@ -8,7 +8,7 @@ class PlasmidTemplateTestCase(TestCase):
         templates = Template.objects.all()
         for template in templates:
             # Récupérer les plasmides associés à la template
-            plasmids = template.plasmids.all()
+            plasmids = Template.plasmids.all()
             for plasmid in plasmids:
                 # Vérifier que le fichier .gb existe pour chaque plasmide
                 self.assertTrue(plasmid.gb_file.exists(), f"Le plasmide {plasmid.name} n'a pas de fichier .gb associé dans la template {template.name}")

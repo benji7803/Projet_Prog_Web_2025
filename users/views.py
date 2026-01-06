@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import login, logout
+from django.views.decorators.http import require_POST
 
 # Create your views here.
 
@@ -27,7 +28,7 @@ def login_view(request):
         form = AuthenticationForm()
     return render(request, 'users/login.html', {"form": form})
 
+@require_POST
 def logout_view(request):
-    if request.method == "POST":
-        logout(request)
-        return redirect("templates:dashboard")
+    logout(request)
+    return redirect("templates:dashboard")

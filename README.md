@@ -26,5 +26,6 @@ Pour visualiser le site web, il suffit de rentrer 127.0.0.1:8000 dans le navigat
 - Création d'une template de campagne permettant de sélectionner un titre, l'enzyme de restriction, la description et les différentes colonnes de façon à obtenir le fichier excel à remplir.
 - Modifier et télécharger les templates écrites.
 - Afficher les plasmides avec un diagramme circulaire ou linéaire.
+- Simuler une campagne en étant un utilisateur non connecté
 
 # À venir

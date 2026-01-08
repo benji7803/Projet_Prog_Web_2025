@@ -1,7 +1,7 @@
 # pip install biopython dna_features_viewer matplotlib
 
 from Bio import SeqIO
-from dna_features_viewer import BiopythonTranslator, GraphicFeature, GraphicRecord, CircularGraphicRecord
+from dna_features_viewer import GraphicFeature, GraphicRecord, CircularGraphicRecord
 import matplotlib.pyplot as plt
 import os
 

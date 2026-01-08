@@ -201,7 +201,7 @@ def submit(request):
             except Exception as e:
                 message = f"Erreur Excel : {e}"
 
-        # 2 Gestion de l'archive 
+        # 2 Gestion de l'archive
         if plasmid_archive:
             # AA partir des données stockées
             inputs_name = request.session.get('inputs_name', [])
@@ -227,21 +227,15 @@ def submit(request):
 
 
 def simulate_anonymous(request):
-    # Chemins par défaut du serveur
-    SERVER_DATA_DIR = pathlib.Path(settings.BASE_DIR) / 'data_science'
-    DEFAULT_PRIMERS = SERVER_DATA_DIR / 'DB_primer.csv'
-    DEFAULT_CONC_FILE = SERVER_DATA_DIR / 'input-plasmid-concentrations_updated.csv'
-
     if request.method == 'POST':
         form = AnonymousSimulationForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                # 1 SETUP SANDBOX (Dossier temporaire unique)
+                # 1 SETUP SANDBOX
                 unique_id = str(uuid.uuid4())
                 BASE_MEDIA = pathlib.Path(settings.MEDIA_ROOT)
                 SANDBOX_DIR = BASE_MEDIA / 'temp_uploads' / unique_id
 
-                # Création des dossiers
                 PLASMIDS_DIR = SANDBOX_DIR / 'plasmids'
                 OUTPUT_DIR = SANDBOX_DIR / 'output'
                 PLASMIDS_DIR.mkdir(parents=True, exist_ok=True)
@@ -249,81 +243,66 @@ def simulate_anonymous(request):
 
                 fs = FileSystemStorage(location=SANDBOX_DIR)
 
-                # 2 GESTION DES FICHIERS REQUIS
-                # Template
+                # 2 SAUVEGARDE DES FICHIERS REQUIS
                 f_template = request.FILES['template_file']
-                path_template = pathlib.Path(fs.save("campaign.xlsx", f_template))
-                full_template_path = SANDBOX_DIR / path_template
+                full_template_path = SANDBOX_DIR / pathlib.Path(fs.save("campaign.xlsx", f_template))
 
-                # Mapping
                 f_mapping = request.FILES['mapping_file']
-                path_mapping = pathlib.Path(fs.save("mapping.csv", f_mapping))
-                full_mapping_path = SANDBOX_DIR / path_mapping
+                full_mapping_path = SANDBOX_DIR / pathlib.Path(fs.save("mapping.csv", f_mapping))
 
-                # Zip Plasmides (Extraction immédiate)
                 f_zip = request.FILES['plasmids_zip']
                 path_zip = pathlib.Path(fs.save("plasmids.zip", f_zip))
                 with zipfile.ZipFile(SANDBOX_DIR / path_zip, 'r') as zip_ref:
                     zip_ref.extractall(PLASMIDS_DIR)
 
-                # 3 GESTION DES FICHIERS OPTIONNELS (Logique : User > Server)
+                # 3 GESTION DES OPTIONNELS
 
-                # A Primers
+                # A Primers (Fichier CSV Uploadé)
+                final_primers_path = None
                 if form.cleaned_data['primers_file']:
-                    f_primers = form.cleaned_data['primers_file']
-                    path_primers = pathlib.Path(fs.save("primers.csv", f_primers))
-                    final_primers_path = SANDBOX_DIR / path_primers
-                else:
-                    final_primers_path = DEFAULT_PRIMERS
+                    f_primers = request.FILES['primers_file']
+                    path_saved = fs.save("primers.csv", f_primers)
+                    final_primers_path = SANDBOX_DIR / pathlib.Path(path_saved)
 
-                # B Concentrations
+                # B Concentrations Spécifiques (Fichier CSV Uploadé)
+                final_conc_path = None
                 if form.cleaned_data['concentration_file']:
-                    f_conc = form.cleaned_data['concentration_file']
-                    path_conc = pathlib.Path(fs.save("concentrations.csv", f_conc))
-                    final_conc_path = SANDBOX_DIR / path_conc
-                else:
-                    final_conc_path = DEFAULT_CONC_FILE
+                    f_conc = request.FILES['concentration_file']
+                    path_saved = fs.save("concentrations.csv", f_conc)
+                    final_conc_path = SANDBOX_DIR / pathlib.Path(path_saved)
 
-                # C Paramètres scalaires
-                enzyme_choice = form.cleaned_data['enzyme']
-                default_conc_val = form.cleaned_data['default_concentration'] or 200.0
+                # C Paramètres Scalaires
+                enzyme_data = form.cleaned_data['enzyme']
+                final_enzyme_names = [enzyme_data] if enzyme_data else None
 
-                # D Paires d'amorces (Parsing du texte "P29,P30")
-                raw_pairs = form.cleaned_data['primer_pairs']
-                primer_pairs_list = []
-                if raw_pairs:
-                    # On transforme "P29,P30" en [('P29', 'P30')]
-                    # Note: pour faire simple on suppose une seule paire pour l'instant
-                    # ou on splitte simplement si insillyclo attend une liste de tuples
-                    parts = [p.strip() for p in raw_pairs.split(',')]
+                conc_data = form.cleaned_data['default_concentration']
+                final_default_conc = conc_data if conc_data is not None else 200.0
+
+                pairs_data = form.cleaned_data['primer_pairs']
+                final_primer_pairs = None
+                if pairs_data and pairs_data.strip():
+                    parts = [p.strip() for p in pairs_data.split(',')]
                     if len(parts) >= 2:
-                        primer_pairs_list = [(parts[0], parts[1])]
-                    else:
-                        primer_pairs_list = [] # Pas de paire valide
+                        final_primer_pairs = [(parts[0], parts[1])]
 
-                # 4 LANCEMENT DE LA SIMULATION
+                # 4 LANCEMENT SIMULATION
                 observer = insillyclo.observer.InSillyCloCliObserver(debug=False, fail_on_error=True)
 
                 insillyclo.simulator.compute_all(
                     observer=observer,
                     settings=None,
-
-                    # Entrées obligatoires
                     input_template_filled=full_template_path,
                     input_parts_files=[full_mapping_path],
-                    gb_plasmids=PLASMIDS_DIR.glob('**/*.gb'), # Récursif dans le zip extrait
-
+                    gb_plasmids=PLASMIDS_DIR.glob('**/*.gb'),
                     output_dir=OUTPUT_DIR,
                     data_source=insillyclo.data_source.DataSourceHardCodedImplementation(),
 
-                    # Entrées dynamiques (User ou Default)
+                    # Paramètres optionnels
                     primers_file=final_primers_path,
                     concentration_file=final_conc_path,
-
-                    # Paramètres
-                    enzyme_names=[enzyme_choice],
-                    primer_id_pairs=primer_pairs_list,
-                    default_mass_concentration=default_conc_val,
+                    primer_id_pairs=final_primer_pairs,
+                    enzyme_names=final_enzyme_names,
+                    default_mass_concentration=final_default_conc,
                 )
 
                 # 5 PACKAGING ET RETOUR
@@ -332,15 +311,13 @@ def simulate_anonymous(request):
 
                 final_zip_name = f"resultats_anonymes_{unique_id}.zip"
                 final_zip_path = SANDBOX_DIR / final_zip_name
-
                 make_zipfile(str(OUTPUT_DIR), str(final_zip_path))
 
                 return FileResponse(open(final_zip_path, 'rb'), as_attachment=True, filename=final_zip_name)
 
             except Exception as e:
-                # En cas d'erreur, on renvoie le formulaire rempli avec l'erreur
                 return render(request, 'gestionTemplates/anonymous_sim.html', {
-                    'form': form, 
+                    'form': form,
                     'error': f"Erreur de simulation : {str(e)}"
                 })
     else:
@@ -354,6 +331,6 @@ def make_zipfile(source_dir, output_filename):
     with zipfile.ZipFile(output_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(source_dir):
             for file in files:
-                zipf.write(os.path.join(root, file), 
+                zipf.write(os.path.join(root, file),
                            os.path.relpath(os.path.join(root, file),
                            os.path.join(source_dir, '..')))

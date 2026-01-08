@@ -2,10 +2,10 @@ from django import forms
 from .models import CampaignTemplate
 
 
+# Formulaire pour créer un template
 class CampaignTemplateForm(forms.ModelForm):
     class Meta:
         model = CampaignTemplate
-        # On ne demande que ces 3 champs à l'utilisateur
         fields = ['name', 'description', 'file']
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
@@ -20,57 +20,47 @@ class CampaignTemplateForm(forms.ModelForm):
         return file
 
 
+# Formulaire pour la simulation anonyme
 class AnonymousSimulationForm(forms.Form):
-    # --- SECTION OBLIGATOIRE (Minima) ---
-    template_file = forms.FileField(
-        label="1. Fichier Template (.xlsx) *",
-        help_text="Le fichier Excel définissant la campagne (requis).",
-        required=True
-    )
-    plasmids_zip = forms.FileField(
-        label="2. Archive des plasmides (.zip) *",
-        help_text="Archive contenant tous les fichiers .gb (requis).",
-        required=True
-    )
-    mapping_file = forms.FileField(
-        label="3. Correspondance Noms <-> ID (.csv) *",
-        help_text="Fichier CSV (iP_mapping) (requis).",
-        required=True
-    )
+    # --- CHAMPS REQUIS ---
+    template_file = forms.FileField(label="1. Fichier Template (.xlsx) *", required=True)
+    plasmids_zip = forms.FileField(label="2. Archive des plasmides (.zip) *", required=True)
+    mapping_file = forms.FileField(label="3. Correspondance Noms <-> ID (.csv) *", required=True)
 
-    # --- SECTION OPTIONNELLE ---
+    # --- CHAMPS OPTIONNELS (FICHIERS) ---
 
+    # Amorces
     primers_file = forms.FileField(
         label="4. Fichier des amorces (.csv)",
-        help_text="Optionnel. Si vide, utilise la base de données du serveur.",
-        required=False
+        required=False,
+        help_text="Si vide, aucune PCR ne sera simulée."
     )
 
+    # Concentrations
     concentration_file = forms.FileField(
-        label="5. Concentrations des plasmides (.csv)",
-        help_text="Optionnel. Si vide, utilise les valeurs par défaut.",
-        required=False
+        label="5. Concentrations spécifiques (.csv)",
+        required=False,
+        help_text="Optionnel. Permet de spécifier une concentration différente pour certains plasmides."
+    )
+
+    # --- PARAMÈTRES SCALAIRES ---
+    enzyme = forms.ChoiceField(
+        label="Enzyme de restriction",
+        choices=[('', '--- Aucune (None) ---'), ('BsaI', 'BsaI'), ('BsmBI', 'BsmBI'), ('BbsI', 'BbsI')],
+        required=False,
+        help_text="Si non spécifiée, le paramètre sera None."
     )
 
     default_concentration = forms.FloatField(
         label="Concentration par défaut (ng/µL)",
-        initial=200.0,
-        min_value=0.1,
-        help_text="Valeur utilisée si un plasmide n'est pas dans le fichier de concentration.",
-        required=False
-    )
-
-    enzyme = forms.ChoiceField(
-        label="Enzyme de restriction",
-        choices=[('BsaI', 'BsaI'), ('BsmBI', 'BsmBI'), ('BbsI', 'BbsI')],
-        initial='BsaI',
-        help_text="L'enzyme utilisée pour la digestion.",
-        required=True
+        required=False,
+        min_value=0.0,
+        help_text="Si vide, la valeur sera forcée à 200."
     )
 
     primer_pairs = forms.CharField(
         label="Paires d'amorces (IDs)",
-        initial="P29,P30",
-        help_text="IDs des amorces à tester, séparés par une virgule (ex: P29,P30).",
-        required=False
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'P29,P30'}),
+        help_text="IDs séparés par une virgule. Si vide, paramètre à None."
     )

@@ -22,5 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('template/', include('gestionTemplate.urls')),
     path('users/', include('users.urls')),
-    path('', RedirectView.as_view(url='/templates/dashboard/', permanent=False)),
+    path('', RedirectView.as_view(url='/template/dashboard/', permanent=False)),
 ]

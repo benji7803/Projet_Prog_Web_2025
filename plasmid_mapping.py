@@ -15,7 +15,7 @@ nom_sans_ext = os.path.splitext(nom_fichier)[0]
 
 nom_plasmide = nom_sans_ext[1:]
 
-record = SeqIO.read("data_web/pMISC/pCDE067.gb", "genbank")
+record = SeqIO.read(chemin, "genbank")
 
 # Couleurs selon le type de feature
 FEATURE_COLORS = {

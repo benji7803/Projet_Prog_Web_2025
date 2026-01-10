@@ -8,4 +8,5 @@ dna_features_viewer
 insillyclo
 reportlab==4.0.0
 git+https://github.com/j-caron/DnaFeaturesViewer.git
-
+django-extensions 
+pygraphviz

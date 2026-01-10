@@ -15,8 +15,20 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
-```
 
+python3 manage.py migrate
+
+python3 ./manage.py runserver
+```
+# Générer le schéma de la base de données
+
+```bash
+sudo apt-get update
+sudo apt-get install graphviz libgraphviz-dev pkg-config
+
+python manage.py graph_models -a -o schema_BD.png
+```
+ou bien avec le package 
 Pour visualiser le site web, il suffit de rentrer 127.0.0.1:8000 dans le navigateur.
 
 # Fonctionnalité

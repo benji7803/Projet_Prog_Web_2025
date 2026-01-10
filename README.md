@@ -28,7 +28,6 @@ sudo apt-get install graphviz libgraphviz-dev pkg-config
 
 python manage.py graph_models -a -o schema_BD.png
 ```
-ou bien avec le package 
 Pour visualiser le site web, il suffit de rentrer 127.0.0.1:8000 dans le navigateur.
 
 # Fonctionnalité

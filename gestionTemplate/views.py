@@ -226,12 +226,18 @@ def submit(request):
     })
 
 
-def simulate_anonymous(request):
+def simulate(request):
+    template_name = (
+        'gestionTemplates/user_sim.html'
+        if request.user.is_authenticated
+        else 'gestionTemplates/anonymous_sim.html'
+    )
+
     if request.method == 'POST':
         form = AnonymousSimulationForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                # 1 SETUP SANDBOX
+                # === 1. SETUP SANDBOX ===
                 unique_id = str(uuid.uuid4())
                 BASE_MEDIA = pathlib.Path(settings.MEDIA_ROOT)
                 SANDBOX_DIR = BASE_MEDIA / 'temp_uploads' / unique_id
@@ -243,7 +249,7 @@ def simulate_anonymous(request):
 
                 fs = FileSystemStorage(location=SANDBOX_DIR)
 
-                # 2 SAUVEGARDE DES FICHIERS REQUIS
+                # === 2. SAUVEGARDE DES FICHIERS REQUIS ===
                 f_template = request.FILES['template_file']
                 full_template_path = SANDBOX_DIR / pathlib.Path(fs.save("campaign.xlsx", f_template))
 
@@ -255,23 +261,17 @@ def simulate_anonymous(request):
                 with zipfile.ZipFile(SANDBOX_DIR / path_zip, 'r') as zip_ref:
                     zip_ref.extractall(PLASMIDS_DIR)
 
-                # 3 GESTION DES OPTIONNELS
-
-                # A Primers (Fichier CSV Uploadé)
+                # === 3. GESTION DES OPTIONNELS ===
                 final_primers_path = None
                 if form.cleaned_data['primers_file']:
                     f_primers = request.FILES['primers_file']
-                    path_saved = fs.save("primers.csv", f_primers)
-                    final_primers_path = SANDBOX_DIR / pathlib.Path(path_saved)
+                    final_primers_path = SANDBOX_DIR / pathlib.Path(fs.save("primers.csv", f_primers))
 
-                # B Concentrations Spécifiques (Fichier CSV Uploadé)
                 final_conc_path = None
                 if form.cleaned_data['concentration_file']:
                     f_conc = request.FILES['concentration_file']
-                    path_saved = fs.save("concentrations.csv", f_conc)
-                    final_conc_path = SANDBOX_DIR / pathlib.Path(path_saved)
+                    final_conc_path = SANDBOX_DIR / pathlib.Path(fs.save("concentrations.csv", f_conc))
 
-                # C Paramètres Scalaires
                 enzyme_data = form.cleaned_data['enzyme']
                 final_enzyme_names = [enzyme_data] if enzyme_data else None
 
@@ -285,9 +285,8 @@ def simulate_anonymous(request):
                     if len(parts) >= 2:
                         final_primer_pairs = [(parts[0], parts[1])]
 
-                # 4 LANCEMENT SIMULATION
+                # === 4. LANCEMENT DE LA SIMULATION ===
                 observer = insillyclo.observer.InSillyCloCliObserver(debug=False, fail_on_error=True)
-
                 insillyclo.simulator.compute_all(
                     observer=observer,
                     settings=None,
@@ -296,8 +295,6 @@ def simulate_anonymous(request):
                     gb_plasmids=PLASMIDS_DIR.glob('**/*.gb'),
                     output_dir=OUTPUT_DIR,
                     data_source=insillyclo.data_source.DataSourceHardCodedImplementation(),
-
-                    # Paramètres optionnels
                     primers_file=final_primers_path,
                     concentration_file=final_conc_path,
                     primer_id_pairs=final_primer_pairs,
@@ -305,26 +302,25 @@ def simulate_anonymous(request):
                     default_mass_concentration=final_default_conc,
                 )
 
-                # 5 PACKAGING ET RETOUR
+                # === 5. PACKAGING ET RETOUR ===
                 if not os.listdir(OUTPUT_DIR):
                     raise Exception("La simulation n'a produit aucun fichier. Vérifiez vos fichiers d'entrée.")
 
-                final_zip_name = f"resultats_anonymes_{unique_id}.zip"
+                final_zip_name = f"resultats_{'user' if request.user.is_authenticated else 'anonymes'}_{unique_id}.zip"
                 final_zip_path = SANDBOX_DIR / final_zip_name
                 make_zipfile(str(OUTPUT_DIR), str(final_zip_path))
 
                 return FileResponse(open(final_zip_path, 'rb'), as_attachment=True, filename=final_zip_name)
 
             except Exception as e:
-                return render(request, 'gestionTemplates/anonymous_sim.html', {
+                return render(request, template_name, {
                     'form': form,
                     'error': f"Erreur de simulation : {str(e)}"
                 })
     else:
         form = AnonymousSimulationForm()
 
-    return render(request, 'gestionTemplates/anonymous_sim.html', {'form': form})
-
+    return render(request, template_name, {'form': form})
 
 # Fonction utilitaire création zipfile
 def make_zipfile(source_dir, output_filename):

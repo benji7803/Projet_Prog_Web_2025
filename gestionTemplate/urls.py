@@ -9,5 +9,5 @@ urlpatterns = [
     path('edit/<int:template_id>/', views.edit_template, name='edit_template'),
     path('download/<int:template_id>/', views.download_template, name='download_template'),
     path('submit/', views.submit, name="submit"),
-    path('simulate_anonymous/', views.simulate_anonymous, name="simulate_anonymous"),
+    path('simulate/', views.simulate, name="simulate"),
 ]

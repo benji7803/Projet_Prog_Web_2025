@@ -1,0 +1,20 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h2>Mes Équipes</h2>
+
+<ul>
+    {% for team in teams %}
+        <li>
+            <strong>{{ team.name }}</strong> 
+            (Chef : {{ team.leader.first_name|default:"Inconnu" }}) 
+        </li>
+    {% empty %}
+        <li>Vous ne faites partie d'aucune équipe pour le moment.</li>
+    {% endfor %}
+</ul> <div class="actions">
+    <a href="{% url 'users:create_team' %}" class="btn">
+        ➕ Créer une nouvelle équipe
+    </a>
+</div>
+{% endblock %}

@@ -60,10 +60,11 @@ def create_template(request):
             new_campaign = CampaignTemplate(
                 name=name,
                 description=description,
-                user=user  # <--- IMPORTANT
+                user=user
             )
+            filename = CampaignTemplate.generate_unique_filename(name)
+            new_campaign.display_name = filename
 
-            filename = f"Template_{name.replace(' ', '_')}.xlsx"
             new_campaign.file.save(filename, ContentFile(excel_content))
             new_campaign.save()
 

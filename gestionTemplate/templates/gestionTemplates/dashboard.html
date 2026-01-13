@@ -1,39 +1,40 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<h2>Mes Templates de Campagne</h2>
+<h2 class="mb-4">Mes Templates de Campagne</h2>
+
 <a href="{% url 'templates:create_template' %}" class="btn btn-success mb-3">+ Nouveau Template</a>
 
-<table class="table table-bordered">
-    <thead>
-        <tr>
-            <th>Nom</th>
-            <th>Fichier actuel</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for t in templates %}
-        <tr>
-            <td>{{ t.name }}</td>
-            <td>{{ t.filename }}</td>
-            <td>
-                <a href="{% url 'templates:download_template' t.id %}" class="btn btn-sm btn-info">
-                    📥 Télécharger
-                </a>
-                
-                <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-sm btn-warning">
-                    ✏️ Modifier
-                </a>
-                
-                <a href="{% url 'templates:simulate' %}" class="btn btn-primary">
-                    🚀 Simuler
-                </a>
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="3">Aucun template créé.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="table-responsive">
+    <table class="table table-bordered align-middle">
+        <thead class="table-light text-center">
+            <tr>
+                <th>Nom du Template | </th>
+                <th>Fichier actuel | </th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in templates %}
+            <tr>
+                <td class="text-truncate" style="max-width: 250px;" title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
+                <td class="text-truncate" style="max-width: 350px;" title="{{ t.filename }}">{{ t.filename }}</td>
+                <td class="text-center">
+                    <div class="d-flex justify-content-center flex-wrap gap-1">
+                        <a href="{% url 'templates:download_template' t.id %}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
+                        <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-sm btn-warning" title="Modifier">✏️</a>
+                        <a href="{% url 'templates:simulate' %}" class="btn btn-sm btn-primary" title="Simuler">🚀</a>
+                        <a href="{% url 'templates:delete_template' t.id %}" 
+                            class="btn btn-sm btn-danger"
+                            onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
+                            title="Supprimer">🗑️</a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center">Aucun template créé.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endblock %}

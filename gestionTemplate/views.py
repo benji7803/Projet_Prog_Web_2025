@@ -5,6 +5,7 @@ from django.core.files.storage import FileSystemStorage
 from django.core.files.base import ContentFile
 from .models import CampaignTemplate
 from .forms import CampaignTemplateForm, AnonymousSimulationForm
+from django.contrib.auth.decorators import login_required
 
 import pandas as pd
 import uuid
@@ -22,19 +23,26 @@ import insillyclo.simulator
 
 # Dashboard : Lister TOUS les templates (public)
 def dashboard(request):
-    templates = CampaignTemplate.objects.all().order_by('-created_at')
-    return render(request, 'gestionTemplates/dashboard.html', {'templates': templates})
+    if request.user.is_authenticated:
+        # Templates de l'utilisateur connecté
+        templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+        anonymous_templates = None  # pas d'anonymes pour un utilisateur connecté
+        unique_id = None
+    else:
+        templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
 
+    context = {
+        'templates': templates
+    }
+    return render(request, 'gestionTemplates/dashboard.html', context)
 
 def create_template(request):
     if request.method == 'POST':
-        # 1 Récupérer les paramètres globaux
         name = request.POST.get('campaign_name')
         description = request.POST.get('description')
         enzyme = request.POST.get('enzyme')
         output_separator = request.POST.get('output_separator', '-')
 
-        # 2 Récupérer les listes (Les colonnes définies par l'utilisateur)
         part_names = request.POST.getlist('part_names[]')
         part_types = request.POST.getlist('part_types[]')
         is_optional = request.POST.getlist('is_optional[]')
@@ -42,19 +50,19 @@ def create_template(request):
         part_separators = request.POST.getlist('part_separators[]')
 
         try:
-            # 3 Générer le fichier Excel en mémoire
             excel_content = generate_structural_template(
                 enzyme, name, output_separator,
                 part_names, part_types, is_optional, in_output_name, part_separators
             )
 
-            # 4 Sauvegarder dans la BDD (Modèle CampaignTemplate)
-            # création de l'objet
+            # ⚡ Lien avec l'utilisateur connecté
+            user = request.user if request.user.is_authenticated else None
             new_campaign = CampaignTemplate(
                 name=name,
-                description=description
+                description=description,
+                user=user  # <--- IMPORTANT
             )
-            # On attache le fichier généré
+
             filename = f"Template_{name.replace(' ', '_')}.xlsx"
             new_campaign.file.save(filename, ContentFile(excel_content))
             new_campaign.save()
@@ -67,7 +75,6 @@ def create_template(request):
             })
 
     return render(request, 'gestionTemplates/create_edit.html')
-
 
 def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt, p_in_name, p_seps):
     """
@@ -330,3 +337,9 @@ def make_zipfile(source_dir, output_filename):
                 zipf.write(os.path.join(root, file),
                            os.path.relpath(os.path.join(root, file),
                            os.path.join(source_dir, '..')))
+
+def delete_template(request, template_id):
+    campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    campaign.delete()
+    return redirect('templates:dashboard')
+

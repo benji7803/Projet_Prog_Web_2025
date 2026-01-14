@@ -330,6 +330,7 @@ def simulate(request):
 
     return render(request, template_name, {'form': form})
 
+
 # Fonction utilitaire création zipfile
 def make_zipfile(source_dir, output_filename):
     with zipfile.ZipFile(output_filename, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -339,8 +340,8 @@ def make_zipfile(source_dir, output_filename):
                            os.path.relpath(os.path.join(root, file),
                            os.path.join(source_dir, '..')))
 
+
 def delete_template(request, template_id):
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
     campaign.delete()
     return redirect('templates:dashboard')
-

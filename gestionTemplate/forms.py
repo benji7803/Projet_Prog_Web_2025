@@ -23,22 +23,22 @@ class CampaignTemplateForm(forms.ModelForm):
 # Formulaire pour la simulation anonyme
 class AnonymousSimulationForm(forms.Form):
     # --- CHAMPS REQUIS ---
-    template_file = forms.FileField(label="1. Fichier Template (.xlsx) *", required=True)
-    plasmids_zip = forms.FileField(label="2. Archive des plasmides (.zip) *", required=True)
-    mapping_file = forms.FileField(label="3. Correspondance Noms <-> ID (.csv) *", required=True)
+    template_file = forms.FileField(label="Fichier Template (.xlsx) *", required=True)
+    plasmids_zip = forms.FileField(label="Archive des plasmides (.zip) *", required=True)
+    mapping_file = forms.FileField(label="Correspondance Noms <-> ID (.csv) *", required=True)
 
     # --- CHAMPS OPTIONNELS (FICHIERS) ---
 
     # Amorces
     primers_file = forms.FileField(
-        label="4. Fichier des amorces (.csv)",
+        label="Fichier des amorces (.csv)",
         required=False,
         help_text="Si vide, aucune PCR ne sera simulée."
     )
 
     # Concentrations
     concentration_file = forms.FileField(
-        label="5. Concentrations spécifiques (.csv)",
+        label="Concentrations spécifiques (.csv)",
         required=False,
         help_text="Optionnel. Permet de spécifier une concentration différente pour certains plasmides."
     )

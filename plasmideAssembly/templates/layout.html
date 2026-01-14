@@ -13,18 +13,18 @@
 </head>
 <body>
     <nav>
-        <a href="{% url 'templates:dashboard' %}" title="Mes Campagnes">📂 Mes Templates</a> | 
-        <a href="{% url 'templates:create_template' %}" title="Créer template">🆕 Nouveau</a> |
+        <a href="{% url 'templates:dashboard' %}" title="Mes Campagnes">Mes Templates</a> | 
+        <a href="{% url 'templates:create_template' %}" title="Créer template">Nouveau</a> |
         {% if user.is_authenticated %}
             <form method="post" action="{% url 'users:logout' %}" style="display:inline">
                 {% csrf_token %}
                 <button type="submit" style="background:none;border:none;padding:0;font:inherit;cursor:pointer;">
-                    🔓 Déconnexion
+                    Déconnexion
                 </button>
             </form>
         {% else %}
-            <a href="{% url 'users:register' %}" title="Inscription">🚀</a> |
-            <a href="{% url 'users:login' %}" title="Connexion">🔒</a>
+            <a href="{% url 'users:register' %}" title="Inscription">Inscription</a> |
+            <a href="{% url 'users:login' %}" title="Connexion">Connexion</a>
         {% endif %}
         {% if user.is_authenticated %}
         <div style="position: absolute; right: 10px; top: 5%; transform: translateY(-50%);">

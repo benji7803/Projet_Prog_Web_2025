@@ -28,30 +28,47 @@ class CampaignTemplate(models.Model):
             filename = f"Template_{safe_name}_{counter}.xlsx"
         return filename
     
+    
 class Campaign(models.Model):
-    name = models.CharField("Nom du template", max_length=100)
-    description = models.TextField("Description", blank=True)
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_DONE = 'done'
+    STATUS_FAILED = 'failed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_RUNNING, 'Running'),
+        (STATUS_DONE, 'Done'),
+        (STATUS_FAILED, 'Failed'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    file = models.FileField(upload_to='campaign_templates/', verbose_name="Fichier Excel")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-    display_name = models.CharField("Nom d'affichage", max_length=150, blank=True)
-    plasmides = models.ManyToManyField('Plasmide', related_name='campaigns', blank=True)
+
+    # fichiers requis pour la simulation
+    template_file = models.FileField(upload_to='simulations/templates/')
+    mapping_file = models.FileField(upload_to='simulations/mappings/')
+    plasmids_archive = models.FileField(upload_to='simulations/plasmids/')
+
+    # optionnels
+    primers_file = models.FileField(upload_to='simulations/primers/', null=True, blank=True)
+    concentration_file = models.FileField(upload_to='simulations/concentrations/', null=True, blank=True)
+
+    # options simples
+    enzyme = models.CharField(max_length=100, blank=True, null=True)
+    default_concentration = models.FloatField(default=200.0)
+    # stocker paires / autres options en JSON
+    options = models.JSONField(blank=True, default=dict)
+
+    # résultat / statut
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    result_file = models.FileField(upload_to='simulations/results/', null=True, blank=True)
+    error_message = models.TextField(null=True, blank=True)
 
     def __str__(self):
-        return self.name
-
-    @staticmethod
-    def generate_unique_filename(name):
-        safe_name = re.sub(r'\W+', '_', name).strip('_')
-        base_filename = f"Template_{safe_name}.xlsx"
-        filename = base_filename
-        counter = 0
-
-        while CampaignTemplate.objects.filter(display_name=filename).exists():
-            counter += 1
-            filename = f"Template_{safe_name}_{counter}.xlsx"
-        return filename
+        return f"{self.name} ({self.pk})"
 
 class Plasmide(models.Model):
     name = models.CharField("Nom du plasmide", max_length=100)

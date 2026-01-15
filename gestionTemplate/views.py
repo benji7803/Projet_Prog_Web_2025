@@ -6,6 +6,7 @@ from django.core.files.base import ContentFile
 from .models import CampaignTemplate
 from .forms import CampaignTemplateForm, AnonymousSimulationForm
 from django.contrib.auth.decorators import login_required
+from .plasmid_mapping import generate_plasmid_maps
 
 import pandas as pd
 import uuid
@@ -345,3 +346,40 @@ def delete_template(request, template_id):
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
     campaign.delete()
     return redirect('templates:dashboard')
+
+def view_plasmid(request):
+    if request.method == 'POST':
+        plasmid_file = request.FILES.get('plasmid_file')
+
+        if not plasmid_file:
+            return render(request, 'gestionTemplates/view_plasmid.html', {
+                'error': "⚠️ Aucun fichier n’a été sélectionné."
+            })
+
+        if not plasmid_file.name.lower().endswith('.gb'):
+            return render(request, 'gestionTemplates/view_plasmid.html', {
+                'error': "❌ Le fichier doit être au format .gb (GenBank)."
+            })
+
+        # On sauve le fichier temporairement
+        upload_dir = 'temp_uploads/genbank_files'
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, plasmid_file.name)
+        with open(file_path, 'wb+') as destination:
+            for chunk in plasmid_file.chunks():
+                destination.write(chunk)
+
+        # On génère les cartes dans temp_uploads/plasmid_maps
+        linear_path, circular_path = generate_plasmid_maps(file_path, output_dir="temp_uploads/plasmid_maps")
+
+        # Construire une URL relative accessible depuis le navigateur
+        linear_url = "/" + linear_path.replace("\\", "/")  # Windows-safe
+        circular_url = "/" + circular_path.replace("\\", "/")
+
+        return render(request, 'gestionTemplates/view_plasmid.html', {
+            'message': f"Fichier '{plasmid_file.name}' traité avec succès !",
+            'linear_map': linear_url,
+            'circular_map': circular_url
+        })
+
+    return render(request, 'gestionTemplates/view_plasmid.html')

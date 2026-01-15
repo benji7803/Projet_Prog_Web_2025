@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+import os
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -24,3 +26,5 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('', RedirectView.as_view(url='/template/dashboard/', permanent=False)),
 ]
+
+urlpatterns += static('/temp_uploads/', document_root=os.path.join(os.getcwd(), 'temp_uploads'))

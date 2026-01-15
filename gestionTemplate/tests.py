@@ -9,7 +9,7 @@ from gestionTemplate.models import Plasmide
 
 class PlasmideGenbankTest(TestCase):
     def test_create_from_genbank_file(self):
-        src = Path(r"c:\Users\ludov\Documents\Projet_Prog_Web_2025\data_web\pMISC\pCDE067.gb")
+        src = Path(r"data_web\\pMISC\\pCDE067.gb")
         assert src.exists(), "Fichier GenBank introuvable pour le test"
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.gb') as tmp:
             shutil.copyfile(src, tmp.name)

@@ -11,5 +11,6 @@ urlpatterns = [
     path('submit/', views.submit, name="submit"),
     path('delete/<int:template_id>/',views.delete_template, name="delete_template"),
     path('simulate/', views.simulate, name="simulate"),
+    path('view/', views.view_plasmid, name="view_plasmid"),
 ]
 

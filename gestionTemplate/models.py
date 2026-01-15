@@ -143,7 +143,7 @@ class Plasmide(models.Model):
                 i = j
             i += 1
 
-        name = fields.get('accession') or fields.get('locus') or os.path.splitext(os.path.basename(filepath))[0]
+        name = os.path.splitext(os.path.basename(filepath))[0]
         plasmide = cls.objects.create(
             name=name,
             description=fields.get('definition',''),

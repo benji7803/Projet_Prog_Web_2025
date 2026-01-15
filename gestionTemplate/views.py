@@ -182,7 +182,7 @@ def edit_template(request, template_id):
 # Téléchargement
 def download_template(request, template_id):
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
-    return FileResponse(campaign.file.open(), as_attachment=True, filename=campaign.filename())
+    return FileResponse(campaign.file.open(), as_attachment=True, filename=campaign.display_name)
 
 
 def submit(request):

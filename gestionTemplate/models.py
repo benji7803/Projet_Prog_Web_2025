@@ -27,3 +27,155 @@ class CampaignTemplate(models.Model):
             counter += 1
             filename = f"Template_{safe_name}_{counter}.xlsx"
         return filename
+    
+    
+class Campaign(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_DONE = 'done'
+    STATUS_FAILED = 'failed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_RUNNING, 'Running'),
+        (STATUS_DONE, 'Done'),
+        (STATUS_FAILED, 'Failed'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # fichiers requis pour la simulation
+    template_file = models.FileField(upload_to='simulations/templates/')
+    mapping_file = models.FileField(upload_to='simulations/mappings/')
+    plasmids_archive = models.FileField(upload_to='simulations/plasmids/')
+
+    # optionnels
+    primers_file = models.FileField(upload_to='simulations/primers/', null=True, blank=True)
+    concentration_file = models.FileField(upload_to='simulations/concentrations/', null=True, blank=True)
+
+    # options simples
+    enzyme = models.CharField(max_length=100, blank=True, null=True)
+    default_concentration = models.FloatField(default=200.0)
+    # stocker paires / autres options en JSON
+    options = models.JSONField(blank=True, default=dict)
+
+    # résultat / statut
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    result_file = models.FileField(upload_to='simulations/results/', null=True, blank=True)
+    error_message = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.pk})"
+
+class Plasmide(models.Model):
+    name = models.CharField("Nom du plasmide", max_length=100)
+    description = models.TextField("Description", blank=True)
+
+    # GenBank fields
+    accession = models.CharField("Accession", max_length=50, blank=True)
+    version = models.CharField("Version", max_length=50, blank=True)
+    genbank_definition = models.CharField("Definition GenBank", max_length=255, blank=True)
+    organism = models.CharField("Organisme", max_length=150, blank=True)
+    mol_type = models.CharField("Type molécule", max_length=50, blank=True)
+    keywords = models.CharField("Mots-clés", max_length=255, blank=True)
+    reference_authors = models.TextField("Auteurs / Référence", blank=True)
+    reference_journal = models.TextField("Journal / Citation", blank=True)
+
+    length = models.IntegerField("Longueur (bp)", null=True, blank=True)
+    sequence = models.TextField("Séquence (nt)", blank=True)
+    features = models.JSONField("Features (brut)", null=True, blank=True)
+    gc_content = models.FloatField("GC (%)", null=True, blank=True)
+
+    @classmethod
+    def create_from_genbank(cls, filepath):
+        """
+        Parse a simple GenBank file and create/save a Plasmide instance.
+        Returns the created instance.
+        """
+        import re, os
+
+        with open(filepath, 'r', encoding='utf-8') as fh:
+            lines = [l.rstrip('\n') for l in fh]
+
+        fields = {}
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if line.startswith('LOCUS'):
+                m_len = re.search(r'(\d+)\s+bp', line)
+                if m_len:
+                    fields['length'] = int(m_len.group(1))
+                m_mol = re.search(r'\d+\s+bp\s+([^\s]+)', line)
+                if m_mol:
+                    fields['mol_type'] = m_mol.group(1)
+                parts = line.split()
+                if len(parts) > 1:
+                    fields['locus'] = parts[1]
+            elif line.startswith('DEFINITION'):
+                val = line[len('DEFINITION'):].strip()
+                j = i + 1
+                while j < len(lines) and lines[j].startswith(' '):
+                    cont = lines[j].strip()
+                    # stop if next keyword likely starts (heuristic)
+                    if re.match(r'^[A-Z]+', cont) and cont.split()[0] in ('ACCESSION','VERSION','KEYWORDS','SOURCE','REFERENCE','FEATURES','ORIGIN','LOCUS','DEFINITION'):
+                        break
+                    val += ' ' + cont
+                    j += 1
+                fields['definition'] = val
+                i = j - 1
+            elif line.startswith('ACCESSION'):
+                fields['accession'] = line[len('ACCESSION'):].strip()
+            elif line.startswith('VERSION'):
+                fields['version'] = line[len('VERSION'):].strip()
+            elif line.startswith('KEYWORDS'):
+                kw = line[len('KEYWORDS'):].strip()
+                fields['keywords'] = kw.rstrip('.')
+            elif line.lstrip().startswith('ORGANISM'):
+                fields['organism'] = line.strip().split(None,1)[1] if len(line.strip().split(None,1))>1 else ''
+            elif line.startswith('FEATURES'):
+                feat_lines = []
+                j = i + 1
+                while j < len(lines) and not lines[j].startswith('ORIGIN'):
+                    feat_lines.append(lines[j])
+                    j += 1
+                fields['features_raw'] = '\n'.join(feat_lines).strip()
+                i = j - 1
+            elif line.startswith('ORIGIN'):
+                seq_parts = []
+                j = i + 1
+                while j < len(lines) and not lines[j].startswith('//'):
+                    seq_line = re.sub(r'[^acgtACGT]', '', lines[j])
+                    if seq_line:
+                        seq_parts.append(seq_line)
+                    j += 1
+                seq = ''.join(seq_parts).upper()
+                fields['sequence'] = seq
+                fields['length'] = len(seq) if seq else fields.get('length')
+                if seq:
+                    gc = (seq.count('G') + seq.count('C')) / len(seq) * 100
+                    fields['gc_content'] = round(gc, 2)
+                i = j
+            i += 1
+
+        name = os.path.splitext(os.path.basename(filepath))[0]
+        plasmide = cls.objects.create(
+            name=name,
+            description=fields.get('definition',''),
+            accession=fields.get('accession',''),
+            version=fields.get('version',''),
+            genbank_definition=fields.get('definition','')[:255],
+            organism=fields.get('organism',''),
+            mol_type=fields.get('mol_type',''),
+            keywords=fields.get('keywords',''),
+            length=fields.get('length'),
+            sequence=fields.get('sequence',''),
+            features={'raw': fields.get('features_raw','')},
+            gc_content=fields.get('gc_content')
+        )
+        return plasmide
+
+    def __str__(self):
+        return self.name

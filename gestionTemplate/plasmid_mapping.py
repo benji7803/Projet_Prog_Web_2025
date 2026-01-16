@@ -27,7 +27,6 @@ def seqfeature_to_graphic(f):
         label = f.qualifiers["label"][0]
     else:
         label = f.type
-
     return GraphicFeature(
         start=int(f.location.start),
         end=int(f.location.end),

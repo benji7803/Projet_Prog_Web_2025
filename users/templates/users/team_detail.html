@@ -1,0 +1,47 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h2>Équipe : {{ team.name }}</h2>
+
+<p><strong>Chef d'équipe :</strong> {{ team.leader.email }}</p>
+
+{% if request.user == team.leader %}
+<hr>
+<h3>Inviter un membre</h3>
+<form action="{% url 'users:invite_member' team.id %}" method="post">
+    {% csrf_token %}
+    <input type="email" name="email" placeholder="exemple@email.com" required>
+    <button type="submit" class="btn">➕ Ajouter à l'équipe</button>
+</form>
+{% endif %}
+
+<h3>Membres (par ancienneté)</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Utilisateur</th>
+            <th>Date d'arrivée</th>
+            <th>Rôle</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for lien in lien_membres %}
+        <li>{{ lien.user.email }} (Rejoint le : {{ lien.date_rejoint|date:"d/m/Y" }})</li>
+    {% empty %}
+        <li>Aucun membre (ceci ne devrait pas arriver si le chef est membre).</li>
+    {% endfor %}
+    </tbody>
+</table>
+<hr>
+
+{% if request.user == team.leader %}
+    <form action="{% url 'users:delete_team' team.id %}" method="post" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn-delete">
+            Supprimer l'équipe
+        </button>
+    </form>
+{% endif %}
+
+<p><a href="{% url 'users:profile' %}">⬅ Retour à mon profil</a></p>
+{% endblock %}

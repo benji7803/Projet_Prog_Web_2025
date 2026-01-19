@@ -476,3 +476,6 @@ def view_plasmid(request):
         })
 
     return render(request, 'gestionTemplates/view_plasmid.html')
+
+def user_view_plasmid(request):
+    return render(request, 'gestionTemplates/user_view_plasmid.html')

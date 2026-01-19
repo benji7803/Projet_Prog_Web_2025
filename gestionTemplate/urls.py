@@ -18,4 +18,6 @@ urlpatterns = [
     path('simulate/view_plasmid/', views.user_view_plasmid, name='user_view_plasmid'),
 ]
 
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

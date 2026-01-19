@@ -444,6 +444,7 @@ def view_plasmid(request):
     if request.method == 'POST':
         plasmid_file = request.FILES.get('plasmid_file')
 
+        # Vérification du fichier envoyé
         if not plasmid_file:
             return render(request, 'gestionTemplates/view_plasmid.html', {
                 'error': "⚠️ Aucun fichier n’a été sélectionné."
@@ -454,27 +455,30 @@ def view_plasmid(request):
                 'error': "❌ Le fichier doit être au format .gb (GenBank)."
             })
 
-        # On sauve le fichier temporairement
-        upload_dir = 'temp_uploads/genbank_files'
+        # --- Sauvegarde temporaire du fichier GenBank ---
+        upload_subdir = "temp_uploads/genbank_files"
+        upload_dir = os.path.join(settings.MEDIA_ROOT, upload_subdir)
         os.makedirs(upload_dir, exist_ok=True)
+
         file_path = os.path.join(upload_dir, plasmid_file.name)
         with open(file_path, 'wb+') as destination:
             for chunk in plasmid_file.chunks():
                 destination.write(chunk)
 
-        # On génère les cartes dans temp_uploads/plasmid_maps
-        linear_path, circular_path = generate_plasmid_maps(file_path, output_dir="temp_uploads/plasmid_maps")
+        # --- Génération des cartes linéaire et circulaire ---
+        linear_url, circular_url = generate_plasmid_maps(file_path)
 
-        # Construire une URL relative accessible depuis le navigateur
-        linear_url = "/" + linear_path.replace("\\", "/")  # Windows-safe
-        circular_url = "/" + circular_path.replace("\\", "/")
+        # Log pour debug
+        print("→ Fichiers générés :", linear_url, circular_url)
 
+        # --- Affichage dans le template ---
         return render(request, 'gestionTemplates/view_plasmid.html', {
-            'message': f"Fichier '{plasmid_file.name}' traité avec succès !",
+            'message': f"Fichier '{plasmid_file.name}' traité avec succès ✅",
             'linear_map': linear_url,
             'circular_map': circular_url
         })
 
+    # Si GET : juste la page d’upload
     return render(request, 'gestionTemplates/view_plasmid.html')
 
 def user_view_plasmid(request):

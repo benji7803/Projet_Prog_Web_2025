@@ -73,6 +73,8 @@ class Campaign(models.Model):
 class Plasmide(models.Model):
     name = models.CharField("Nom du plasmide", max_length=100)
     description = models.TextField("Description", blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    dossier = models.CharField("dossier pour regrouper les plasmides", default=None)
 
     # GenBank fields
     accession = models.CharField("Accession", max_length=50, blank=True)

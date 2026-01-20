@@ -1,0 +1,95 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+        {% if user.is_authenticated %}
+            <h2 class="h4 mb-0">Simulation de Campagne (Utilisateur connecté)</h2>
+        {% else %}
+            <h2 class="h4 mb-0">Simulation de Campagne (Utilisateur anonyme)</h2>
+        {% endif %}
+        </div>
+        <div class="card-body">
+
+            {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    <strong>Erreur :</strong> {{ error }}
+                </div>
+            {% endif %}
+
+            <!-- === Formulaire de simulation === -->
+            <form method="post" enctype="multipart/form-data" >
+                {% csrf_token %}
+                
+                <h4 class="text-secondary border-bottom pb-2 mb-3">1 Fichiers Requis</h4>
+                <div class="row mb-3">
+                    <div class="col-md-12 mb-3">
+                        {{ form.template_file.label_tag }}
+                        {{ form.template_file }}
+                        <small class="text-danger">{{ form.template_file.errors }}</small>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        {{ form.plasmids_zip.label_tag }}
+                        {{ form.plasmids_zip }}
+                        <small class="text-muted d-block">{{ form.plasmids_zip.help_text }}</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.mapping_file.label_tag }}
+                        {{ form.mapping_file }}
+                        <small class="text-muted d-block">{{ form.mapping_file.help_text }}</small>
+                    </div>
+                </div>
+
+                <h4 class="text-secondary border-bottom pb-2 mb-3 mt-4">2 Paramètres Optionnels</h4>
+                <div class="row">
+                    <div class="col-md-5 mb-4">
+                        <div class="card bg-light border-0 h-100">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Enzyme</label>
+                                    {{ form.enzyme }} 
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Concentration par défaut (ng/µL)</label>
+                                    <input type="number" step="0.1" name="default_concentration" class="form-control" placeholder="Laisser vide = 200">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Paire d'amorces</label>
+                                    <input type="text" name="primer_pairs" class="form-control" placeholder="Ex: P29,P30">
+                                    <small class="text-muted">Laisser vide = None</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-7">
+                        <div class="card border-0 h-100">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">{{ form.primers_file.label }}</label>
+                                    {{ form.primers_file }}
+                                    <small class="text-muted d-block mt-1">{{ form.primers_file.help_text }}</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">{{ form.concentration_file.label }}</label>
+                                    {{ form.concentration_file }}
+                                    <small class="text-muted d-block mt-1">{{ form.concentration_file.help_text }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success">
+                        Lancer la simulation et télécharger les résultats
+                    </button>
+                    <a href="{% url 'templates:dashboard' %}" class="btn btn-outline-secondary">Annuler</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

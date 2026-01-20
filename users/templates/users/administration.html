@@ -1,0 +1,14 @@
+{% extends 'layout.html'%}
+
+{% block content %}
+<h2>Liste des utilisateurs</h2>
+
+<ul>
+    {% for individu in liste_utilisateur %}
+        <li>
+            <strong>{{ individu.username }}</strong> - Connecté le : {{ individu.last_login|date:"d/m/Y H:i" }}
+        </li>
+    {% endfor %}
+</ul>
+
+{% endblock %}

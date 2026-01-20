@@ -17,19 +17,19 @@
         <a href="{% url 'templates:create_template' %}" title="Créer template">Nouveau</a> |
         <a href="{% url 'templates:view_plasmid' %}" title="Visualiser Plasmide">Visualiser</a> |
 
+        {% if user.isAdministrator %}
+            <a href="{% url 'users:administration' %}" title="Administration">Administration</a> | 
+        {% endif %}
+
         {% if user.is_authenticated %}
             <form method="post" action="{% url 'users:logout' %}" style="display:inline">
                 {% csrf_token %}
-                <button type="submit" style="background:none;border:none;padding:0;font:inherit;cursor:pointer;">
+                <button type="submit" class="deconnexion">
                    Déconnexion
                 </button>
             </form>
-        {% else %}
-            <a href="{% url 'users:register' %}" title="Inscription">Inscription</a> |
-            <a href="{% url 'users:login' %}" title="Connexion">Connexion</a>
-        {% endif %}
-        {% if user.is_authenticated %}
-        <div style="position: absolute; right: 10px; top: 5%; transform: translateY(-50%);">
+
+            <div style="position: absolute; right: 10px; top: 5%; transform: translateY(-50%);">
             <span style="font-weight: bold; margin-right: 5px;">
                 {{ user.first_name|default:user.email }}
             </span>
@@ -40,7 +40,11 @@
                 </button>
             </form>
         </div>
-    {% endif %}
+        {% else %}
+            <a href="{% url 'users:register' %}" title="Inscription">Inscription</a> |
+            <a href="{% url 'users:login' %}" title="Connexion">Connexion</a>
+        {% endif %}
+
     </nav>
 
     <main>

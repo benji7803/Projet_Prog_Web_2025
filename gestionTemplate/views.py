@@ -32,11 +32,13 @@ def dashboard(request):
         templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
         anonymous_templates = None  # pas d'anonymes pour un utilisateur connecté
         unique_id = None
+        previous_templates = Campaign.objects.filter(user=request.user).order_by('-created_at')
     else:
         templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
 
     context = {
-        'templates': templates
+        'templates': templates,
+        'previous_templates': previous_templates if request.user.is_authenticated else None
     }
     return render(request, 'gestionTemplates/dashboard.html', context)
 
@@ -245,9 +247,7 @@ import json
 def simulate(request):
     # Choix du template HTML selon le statut
     template_name = (
-        'gestionTemplates/user_sim.html'
-        if request.user.is_authenticated
-        else 'gestionTemplates/anonymous_sim.html'
+        'gestionTemplates/sim.html'
     )
 
     if request.method == 'POST':
@@ -444,6 +444,7 @@ def view_plasmid(request):
     if request.method == 'POST':
         plasmid_file = request.FILES.get('plasmid_file')
 
+        # Vérification du fichier envoyé
         if not plasmid_file:
             return render(request, 'gestionTemplates/view_plasmid.html', {
                 'error': "⚠️ Aucun fichier n’a été sélectionné."
@@ -454,25 +455,62 @@ def view_plasmid(request):
                 'error': "❌ Le fichier doit être au format .gb (GenBank)."
             })
 
-        # On sauve le fichier temporairement
-        upload_dir = 'temp_uploads/genbank_files'
+        # --- Sauvegarde temporaire du fichier GenBank ---
+        upload_subdir = "temp_uploads/genbank_files"
+        upload_dir = os.path.join(settings.MEDIA_ROOT, upload_subdir)
         os.makedirs(upload_dir, exist_ok=True)
+
         file_path = os.path.join(upload_dir, plasmid_file.name)
         with open(file_path, 'wb+') as destination:
             for chunk in plasmid_file.chunks():
                 destination.write(chunk)
 
-        # On génère les cartes dans temp_uploads/plasmid_maps
-        linear_path, circular_path = generate_plasmid_maps(file_path, output_dir="temp_uploads/plasmid_maps")
+        # --- Génération des cartes linéaire et circulaire ---
+        linear_url, circular_url = generate_plasmid_maps(file_path)
 
-        # Construire une URL relative accessible depuis le navigateur
-        linear_url = "/" + linear_path.replace("\\", "/")  # Windows-safe
-        circular_url = "/" + circular_path.replace("\\", "/")
+        # Log pour debug
+        print("→ Fichiers générés :", linear_url, circular_url)
 
+        # --- Affichage dans le template ---
         return render(request, 'gestionTemplates/view_plasmid.html', {
-            'message': f"Fichier '{plasmid_file.name}' traité avec succès !",
+            'message': f"Fichier '{plasmid_file.name}' traité avec succès ✅",
             'linear_map': linear_url,
             'circular_map': circular_url
         })
 
+    # Si GET : juste la page d’upload
     return render(request, 'gestionTemplates/view_plasmid.html')
+
+def user_view_plasmid(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+    plasmid_maps = []  # liste des tuples (nom, linear_url, circular_url)
+
+    if campaign.result_file:
+        zip_path = campaign.result_file.path
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                # filtrer les .gb et enlever les dossiers
+                gb_files = [
+                    f for f in zip_ref.namelist()
+                    if f.lower().endswith('.gb')
+                ]
+
+                for f in gb_files:
+                    # extraire le fichier dans un dossier temporaire
+                    temp_dir = os.path.join("temp_uploads", "gb_temp")
+                    os.makedirs(temp_dir, exist_ok=True)
+                    extracted_path = zip_ref.extract(f, path=temp_dir)
+
+                    # générer les cartes
+                    linear_url, circular_url = generate_plasmid_maps(extracted_path)
+                    # récupérer juste le nom du plasmide pour l'affichage
+                    plasmid_name = os.path.basename(f).replace('.gb', '')
+                    plasmid_maps.append((plasmid_name, linear_url, circular_url))
+
+        except zipfile.BadZipFile:
+            plasmid_maps = []
+
+    return render(request, 'gestionTemplates/user_view_plasmid.html', {
+        'campaign': campaign,
+        'plasmid_maps': plasmid_maps
+    })

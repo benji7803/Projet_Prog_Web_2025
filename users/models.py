@@ -55,6 +55,8 @@ class UserModel(AbstractUser):
     email = models.EmailField('email address', unique=True, max_length=254)
     first_name = models.CharField('first name', max_length=150)
     last_name = models.CharField('last name', max_length=150)
+    equipes = models.ManyToManyField(Equipe, related_name='equipe', blank=True)
+    isAdministrator = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']  # ou ajuster selon besoin

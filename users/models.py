@@ -26,7 +26,6 @@ class Equipe(models.Model):
             if not self.membres.filter(id=utilisateur.id).exists():
                 return "L'utilisateur n'est pas dans cette équipe."
 
-            # Utilisateur chef
             if self.leader == utilisateur:
                 autres_membres = self.membreequipe_set.exclude(user=utilisateur) #Les autres membres de l'équipe ordonnés par date de join
 
@@ -50,7 +49,6 @@ class MembreEquipe(models.Model):
     class Meta:
         ordering = ['date_rejoint']
 
-# Create your models here.
 class UserModel(AbstractUser):
     email = models.EmailField('email address', unique=True, max_length=254)
     first_name = models.CharField('first name', max_length=150)

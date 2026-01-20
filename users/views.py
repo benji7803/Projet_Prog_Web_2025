@@ -4,7 +4,7 @@ from .forms import CustomUserCreationForm, EquipeForm, InviteMemberForm
 from django.contrib.auth import login, logout
 from django.views.decorators.http import require_POST
 from django.contrib import messages
-from .models import Equipe, UserModel
+from .models import Equipe, UserModel, MembreEquipe
 
 
 def register_view(request):
@@ -87,10 +87,20 @@ def invite_member(request, team_id):
                 
     return redirect('users:team_detail', team_id=team.id)
 
+def remove_member(request, team_id, user_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    MembreEquipe.objects.filter(equipe=team, user_id=user_id).delete()
+    return redirect('users:team_detail', team_id=team.id)
+
+def promote_member(request, team_id, user_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    if team.leader.id != int(user_id):
+            team.leader_id = user_id
+            team.save()
+    return redirect('users:team_detail', team_id=team.id)
+
 def delete_team(request, team_id):
     team = get_object_or_404(Equipe, id=team_id)
-    
-    #si c'est le chef
     if team.leader == request.user:
         team.delete()
         

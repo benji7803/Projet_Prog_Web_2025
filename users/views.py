@@ -1,10 +1,11 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import AuthenticationForm
-from .forms import CustomUserCreationForm, EquipeForm
+from .forms import CustomUserCreationForm, EquipeForm, InviteMemberForm
 from django.contrib.auth import login, logout
 from django.views.decorators.http import require_POST
+from django.contrib import messages
+from .models import Equipe, UserModel
 
-# Create your views here.
 
 def register_view(request):
     if request.method == "POST":
@@ -35,7 +36,7 @@ def logout_view(request):
     return redirect("templates:dashboard")
 
 def user_profile(request):
-    teams = request.user.equipes.all()
+    teams = request.user.equipes_membres.all()
     return render(request, 'users/profile.html', {
         'teams': teams
     })
@@ -47,9 +48,7 @@ def create_team(request):
             equipe = form.save(commit=False)
             equipe.leader = request.user  # L'utilisateur est déclaré chef de l'équipe
             equipe.save()
-            
-            # On n'oublie pas d'ajouter le chef à la liste des membres
-            request.user.equipes.add(equipe)
+            equipe.membres.add(request.user)
             
             return redirect('users:profile') # Redirection vers le profil
     else:
@@ -57,4 +56,43 @@ def create_team(request):
     
     return render(request, 'users/create_team.html', {'form': form})
 
+def team_detail(request, team_id):
+    team = get_object_or_404(Equipe, id=team_id)  
+    liens_membres = team.membreequipe_set.all().select_related('user')
+
+    return render(request, 'users/team_detail.html', {
+        'team': team,
+        'lien_membres': liens_membres
+    })
+
+def invite_member(request, team_id):
+    team = get_object_or_404(Equipe, id=team_id)
+
+    if request.method == 'POST':
+        form = InviteMemberForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            try:
+                user_to_invite = UserModel.objects.get(email=email)
+                
+                # Vérifier si l'utilisateur est déjà dans l'équipe
+                if team.membres.filter(id=user_to_invite.id).exists():
+                    messages.warning(request, "Cet utilisateur est déjà membre.")
+                else:
+                    team.membres.add(user_to_invite)
+                    messages.success(request, f"{user_to_invite.email} a été ajouté.")
+                    
+            except UserModel.DoesNotExist:
+                messages.error(request, "Aucun utilisateur trouvé avec cet email.")
+                
+    return redirect('users:team_detail', team_id=team.id)
+
+def delete_team(request, team_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    
+    #si c'est le chef
+    if team.leader == request.user:
+        team.delete()
+        
+    return redirect('users:profile') # Retour au profil après suppression
 

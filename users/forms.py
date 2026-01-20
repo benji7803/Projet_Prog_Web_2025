@@ -15,3 +15,5 @@ class EquipeForm(forms.ModelForm):
         model = Equipe
         fields = ['name']
 
+class InviteMemberForm(forms.Form):
+    email = forms.EmailField(label="Email de l'utilisateur")

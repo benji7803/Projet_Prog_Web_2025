@@ -1,8 +1,8 @@
-# plasmid_mapping.py
 from Bio import SeqIO
 from dna_features_viewer import GraphicFeature, GraphicRecord, CircularGraphicRecord
 import matplotlib.pyplot as plt
 import os
+from django.conf import settings
 
 # Couleurs par type de feature
 FEATURE_COLORS = {
@@ -13,8 +13,9 @@ FEATURE_COLORS = {
     "rep_origin": "#a6d854",
     "misc_feature": "#ffd92f",
     "misc_binding": "#e5c494",
-    "default": "#b3b3b3"
+    "default": "#b3b3b3",
 }
+
 
 def seqfeature_to_graphic(f):
     """Convertit un feature Biopython en GraphicFeature avec couleur et label."""
@@ -33,29 +34,36 @@ def seqfeature_to_graphic(f):
         end=int(f.location.end),
         strand=f.location.strand,
         color=FEATURE_COLORS.get(f.type, FEATURE_COLORS["default"]),
-        label=label
+        label=label,
     )
 
-def generate_plasmid_maps(chemin, output_dir="temp_uploads/plasmid_maps"):
+
+def generate_plasmid_maps(chemin, output_subdir="temp_uploads/plasmid_maps"):
     """
-    Génère les cartes linéaire et circulaire d'un plasmide GenBank.
-    Renvoie les chemins relatifs vers les images pour Django.
+    Génère les cartes linéaire et circulaire d’un plasmide GenBank.
+    Renvoie les chemins relatifs utilisables dans les templates Django.
     """
+
+    # Dossier absolu basé sur MEDIA_ROOT défini dans settings.py
+    output_dir = os.path.join(settings.MEDIA_ROOT, output_subdir)
     os.makedirs(output_dir, exist_ok=True)
 
     # Lecture du fichier GenBank
     record = SeqIO.read(chemin, "genbank")
 
-    # Nom de base pour le fichier PNG
+    # Nom de base pour les fichiers PNG
     nom_fichier = os.path.basename(chemin)
     nom_sans_ext = os.path.splitext(nom_fichier)[0]
     nom_plasmide = nom_sans_ext
-# Supprime le premier caractère si c'est un "p"
     if nom_plasmide.startswith("p"):
         nom_plasmide = nom_plasmide[1:]
 
     # Conversion des features
-    features = [seqfeature_to_graphic(f) for f in record.features if seqfeature_to_graphic(f) is not None]
+    features = [
+        seqfeature_to_graphic(f)
+        for f in record.features
+        if seqfeature_to_graphic(f) is not None
+    ]
 
     # --- Carte linéaire ---
     linear_record = GraphicRecord(sequence_length=len(record.seq), features=features)
@@ -70,18 +78,21 @@ def generate_plasmid_maps(chemin, output_dir="temp_uploads/plasmid_maps"):
     circular_record = CircularGraphicRecord(
         sequence_length=len(record.seq),
         features=features,
-        annotation_labels_radius=1.35
+        annotation_labels_radius=1.35,
     )
     fig, ax = plt.subplots(figsize=(8, 8))
     circular_record.initialize_ax(ax)
     for feature in features:
         circular_record.plot_feature(ax, feature, level=0)
     circular_record.add_labels(ax, features)
-    ax.set_title(f"Carte circulaire du plasmide {nom_sans_ext}", fontsize=14)
-    circular_path = os.path.join(output_dir, f"{nom_sans_ext}_circulaire.png")
+    ax.set_title(f"Carte circulaire du plasmide {nom_plasmide}", fontsize=14)
+    circular_path = os.path.join(output_dir, f"{nom_plasmide}_circulaire.png")
     plt.tight_layout()
     ax.figure.savefig(circular_path, dpi=300)
     plt.close(ax.figure)
 
-    # Retourne les chemins relatifs utilisables dans le template
-    return linear_path, circular_path
+    # --- Chemins relatifs utilisables par Django ---
+    relative_linear = os.path.join(settings.MEDIA_URL.lstrip("/"), output_subdir, f"{nom_plasmide}_lineaire.png")
+    relative_circular = os.path.join(settings.MEDIA_URL.lstrip("/"), output_subdir, f"{nom_plasmide}_circulaire.png")
+
+    return f"/{relative_linear}", f"/{relative_circular}"

@@ -6,7 +6,10 @@
 <ul>
     {% for team in teams %}
         <li>
-            <strong>{{ team.name }}</strong> 
+            <a href="{% url 'users:team_detail' team.id %}">
+                <strong>{{ team.name }}</strong> 
+            </a>
+            
             (Chef : {{ team.leader.first_name|default:"Inconnu" }}) 
         </li>
     {% empty %}
@@ -17,4 +20,5 @@
         ➕ Créer une nouvelle équipe
     </a>
 </div>
+
 {% endblock %}

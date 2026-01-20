@@ -1,11 +1,17 @@
 from django.test import TestCase
 
-from django.test import TestCase
 import tempfile
 import shutil
 from pathlib import Path
-from gestionTemplate.models import Plasmide
+from gestionTemplate.models import Plasmide, CampaignTemplate
 
+import io
+import zipfile
+import os
+from django.test import Client
+from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
+from unittest.mock import patch
 
 class PlasmideGenbankTest(TestCase):
     def test_create_from_genbank_file(self):
@@ -21,28 +27,17 @@ class PlasmideGenbankTest(TestCase):
         self.assertIsInstance(p.length, int)
         self.assertTrue(len(p.sequence) >= p.length or p.length > 0)
         self.assertIsNotNone(p.gc_content)
-from gestionTemplate.models import Template, Plasmid
 
-import io
-import zipfile
-import os
-from django.test import Client
-from django.urls import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
-from unittest.mock import patch
-
-
-# Test 1: Vérifier que les plasmides en .gb sont dans la template associée
-class PlasmidTemplateTestCase(TestCase):
     def test_plasmids_in_template(self):
         # Récupérer toutes les templates
-        templates = Template.objects.all()
+        templates = CampaignTemplate.objects.all()
         for template in templates:
             # Récupérer les plasmides associés à la template
-            plasmids = Template.plasmids.all()
+            plasmids = CampaignTemplate.plasmids.all()
             for plasmid in plasmids:
                 # Vérifier que le fichier .gb existe pour chaque plasmide
                 self.assertTrue(plasmid.gb_file.exists(), f"Le plasmide {plasmid.name} n'a pas de fichier .gb associé dans la template {template.name}")
+
 
 # Test 2: Vérifier que la simulation fonctionne correctement
 class SimulationSimpleTest(TestCase):

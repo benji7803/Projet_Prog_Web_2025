@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 import os
 from django.conf.urls.static import static
+from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,4 +28,8 @@ urlpatterns = [
     path('', RedirectView.as_view(url='/template/dashboard/', permanent=False)),
 ]
 
-urlpatterns += static('/temp_uploads/', document_root=os.path.join(os.getcwd(), 'temp_uploads'))
+#urlpatterns += static('/temp_uploads/', document_root=os.path.join(os.getcwd(), 'temp_uploads'))
+
+if settings.DEBUG:
+    # Permet de servir les fichiers médias (simulations, uploads user) en dév
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

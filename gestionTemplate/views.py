@@ -32,11 +32,13 @@ def dashboard(request):
         templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
         anonymous_templates = None  # pas d'anonymes pour un utilisateur connecté
         unique_id = None
+        previous_templates = Campaign.objects.filter(user=request.user).order_by('-created_at')
     else:
         templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
 
     context = {
-        'templates': templates
+        'templates': templates,
+        'previous_templates': previous_templates if request.user.is_authenticated else None
     }
     return render(request, 'gestionTemplates/dashboard.html', context)
 

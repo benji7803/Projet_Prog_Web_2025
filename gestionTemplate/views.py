@@ -245,9 +245,7 @@ import json
 def simulate(request):
     # Choix du template HTML selon le statut
     template_name = (
-        'gestionTemplates/user_sim.html'
-        if request.user.is_authenticated
-        else 'gestionTemplates/anonymous_sim.html'
+        'gestionTemplates/sim.html'
     )
 
     if request.method == 'POST':

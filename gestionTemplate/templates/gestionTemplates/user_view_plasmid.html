@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container mt-4">
     <h1>Visualiser les plasmides</h1>
-    <p>Vous pouvez téléverser une archive <strong>.zip</strong> contenant vos fichiers GenBank (.gb) pour visualiser tous les plasmides.</p>
+    <p>Page pour voir les plasmides dans l'ordre.</p>
 
     {% if error %}
         <div class="alert alert-danger mt-3">{{ error }}</div>
@@ -16,15 +16,7 @@
         <div class="alert alert-success mt-3">{{ message }}</div>
     {% endif %}
 
-    <!-- Formulaire pour uploader l'archive -->
-    <form method="post" enctype="multipart/form-data" class="mt-3">
-        {% csrf_token %}
-        <div class="mb-3">
-            <label for="plasmids_zip" class="form-label">Choisissez une archive .zip :</label>
-            <input type="file" name="plasmids_zip" id="plasmids_zip" class="form-control" accept=".zip" required>
-        </div>
-        <button type="submit" class="btn btn-primary">Uploader et lister les plasmides</button>
-    </form>
+    
 
 </div>
 {% endblock %}

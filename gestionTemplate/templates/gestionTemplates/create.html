@@ -5,116 +5,128 @@
     <h2>Création d'un Template</h2>
     <p class="text-muted">Définissez la structure de votre template</p>
     
-    <form method="post" action="" id="structureForm">
-        {% csrf_token %}
-        
-        <div class="card mb-4 border-primary">
-            <div class="card-header bg-primary text-white">1. Paramètres d'assemblage</div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Nom du template</label>
-                        <input type="text" name="campaign_name" class="form-control" required placeholder="Ex: GoldenGate_Level1">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Enzyme de restriction</label>
-                        <select name="enzyme" class="form-select">
-                            <option value="BsaI">BsaI</option>
-                            <option value="BsmBI">BsmBI</option>
-                            <option value="BbsI">BbsI</option>
-                            <option value="SapI">SapI</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Séparateur de sortie</label>
-                        <input type="text" name="output_separator" class="form-control" value="-" placeholder="-">
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <label class="form-label">Description (pour le Dashboard)</label>
-                    <textarea name="description" class="form-control" rows="2"></textarea>
-                </div>
-            </div>
-        </div>
+    <form method="post">
+      {% csrf_token %}
 
-        <div class="card mb-4 border-secondary">
-            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                <span>2. Composition de l'assemblage  (Définition des Colonnes)</span>
-                <button type="button" class="btn btn-sm btn-light" onclick="addColumn()">+ Add Column</button>
-            </div>
-            <div class="card-body p-0 table-responsive">
-                <table class="table table-striped mb-0" id="columnsTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 20%">Nom <br><small class="text-muted">(ex: Promoter)</small></th>
-                            <th style="width: 15%">Types<br><small class="text-muted">(ex: 1, 2...)</small></th>
-                            <th style="width: 15%">est optionel ?</th>
-                            <th style="width: 15%">Le nom doit être dans la sortie ?</th>
-                            <th style="width: 15%">Séparateur</th>
-                            <th style="width: 5%">Supprimer</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        </tbody>
-                </table>
-            </div>
+      {{ form.non_field_errors }}
+      <!-- Champs du CampaignTemplate -->
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label>Nom</label>
+          {{ form.name }}
+          {{ form.name.errors }}
         </div>
+        <div class="col-md-6">
+          <label>Enzyme de Restriction</label>
+          {{ form.restriction_enzyme }}
+          {{ form.restriction_enzyme.errors }}
+        </div>
+        <div class="col-md-6">
+          <label>Séparateur de sortie</label>
+          {{ form.separator_sortie }}
+          {{ form.separator_sortie.errors }}
+        </div>
+        <div class="col-md-6">
+          <label>Description</label>
+          {{ form.description }}
+          {{ form.description.errors }}
+        </div>
+      </div>
 
-        <div class="d-grid gap-2">
-            <button type="submit" class="btn btn-success btn-lg">💾 Generate Empty Template</button>
-        </div>
+      <!-- Formset des colonnes -->
+      {{ formset.non_form_errors }}
+      <div class="d-flex justify-content-end mb-2">
+        <button type="button" class="btn btn-outline-primary" id="add-row">+ Ajouter une colonne</button>
+      </div>
+
+      {{ formset.management_form }}
+
+      <table class="table table-striped align-middle mt-3 table-bordered">
+        <thead class="table-light">
+          <tr class="text-center">
+            <th style="width: 30%;">Nom</th>
+            <th style="width: 20%;">Type</th>
+            <th style="width: 10%;">Optionnel</th>
+            <th style="width: 10%;">Dans sortie</th>
+            <th style="width: 15%;">Séparateur</th>
+            <th style="width: 5%;">Suppr</th>
+          </tr>
+        </thead>
+        <tbody id="formset-body">
+          {% for f in formset %}
+          <tr class="form-row">
+            {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+            <td>{{ f.part_names }}</td>
+            <td>{{ f.part_types }}</td>
+            <td class="text-center">
+               <!-- Checkbox standard centrée -->
+               <div class="d-flex justify-content-center">
+                 {{ f.is_optional }}
+               </div>
+            </td>
+            <td class="text-center">
+               <div class="d-flex justify-content-center">
+                 {{ f.in_output_name }}
+               </div>
+            </td>
+            <td>{{ f.part_separators }}</td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-danger delete-row" title="Supprimer">✕</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <button class="btn btn-success" type="submit">Enregistrer</button>
     </form>
+
+    <!-- Gabarit caché - enveloppé dans un div invisible -->
+    <div id="empty-form-wrapper" style="display: none !important;">
+      <table>
+        <tbody id="empty-form">
+          <tr class="form-row">
+            <td>{{ formset.empty_form.part_names }}</td>
+            <td>{{ formset.empty_form.part_types }}</td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center">
+                {{ formset.empty_form.is_optional }}
+              </div>
+            </td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center">
+                {{ formset.empty_form.in_output_name }}
+              </div>
+            </td>
+            <td>{{ formset.empty_form.part_separators }}</td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-danger delete-row">✕</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 </div>
 
 <script>
-    // Ajouter 2 colonnes par défaut au chargement
-    document.addEventListener('DOMContentLoaded', function() {
-        if(document.getElementById('columnsTable').getElementsByTagName('tbody')[0].rows.length === 0){
-            addColumn(); 
-            addColumn();
-        }
-    });
+  const tbody = document.querySelector('table.table tbody');
+  const addBtn = document.getElementById('add-row');
+  const totalInput = document.querySelector('input[name="{{ formset.prefix }}-TOTAL_FORMS"]');
 
-    function addColumn() {
-        const table = document.getElementById('columnsTable').getElementsByTagName('tbody')[0];
-        const newRow = table.insertRow();
-        
-        newRow.innerHTML = `
-            <td>
-                <input type="text" name="part_names[]" class="form-control" required placeholder="Name">
-            </td>
-            <td>
-                <input type="text" name="part_types[]" class="form-control" placeholder="Type">
-            </td>
-            <td>
-                <select name="is_optional[]" class="form-select">
-                    <option value="True">True</option>
-                    <option value="False" selected>False</option>
-                </select>
-            </td>
-            <td>
-                <select name="in_output_name[]" class="form-select">
-                    <option value="True" selected>True</option>
-                    <option value="False">False</option>
-                </select>
-            </td>
-            <td>
-                <input type="text" name="part_separators[]" class="form-control" placeholder=".">
-            </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeColumn(this)">×</button>
-            </td>
-        `;
-    }
+  addBtn.addEventListener('click', () => {
+    const idx = parseInt(totalInput.value, 10);
+    const tmpl = document.querySelector('#empty-form tr').outerHTML.replaceAll('__prefix__', idx);
+    tbody.insertAdjacentHTML('beforeend', tmpl);
+    totalInput.value = idx + 1;
+  });
 
-    function removeColumn(btn) {
-        const row = btn.parentNode.parentNode;
-        const table = row.parentNode;
-        if(table.rows.length > 1) {
-            table.removeChild(row);
-        } else {
-            alert("You need at least one column!");
-        }
+  tbody.addEventListener('click', (e) => {
+    if (e.target.classList.contains('delete-row')) {
+      const row = e.target.closest('tr');
+      const deleteInput = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      if (deleteInput) deleteInput.checked = true;
+      row.style.display = 'none';
     }
+  });
 </script>
 {% endblock %}

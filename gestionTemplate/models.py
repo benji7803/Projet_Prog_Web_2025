@@ -5,14 +5,24 @@ from django.conf import settings
 from django.db.models import Q
 
 class CampaignTemplate(models.Model):
+    class EnzymeChoices(models.TextChoices):
+        BSAI = 'BsaI', 'BsaI'
+        BSMBI = 'BsmBI', 'BsmBI'
+        BBSI = 'BbsI', 'BbsI'
+        SAPI = 'SapI', 'SapI'
+
     name = models.CharField("Nom du template", max_length=100)
     description = models.TextField("Description", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    file = models.FileField(upload_to='campaign_templates/', verbose_name="Fichier Excel")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     team = models.ForeignKey('users.Equipe', on_delete=models.CASCADE, null=True, blank=True)
-    display_name = models.CharField("Nom d'affichage", max_length=150, blank=True)
+    restriction_enzyme = models.CharField(
+        max_length=10, 
+        choices=EnzymeChoices.choices,
+        default=EnzymeChoices.BSAI
+    )
+    separator_sortie = models.CharField(max_length=10, default='-')
 
     def __str__(self):
         return self.name
@@ -29,6 +39,14 @@ class CampaignTemplate(models.Model):
             filename = f"Template_{safe_name}_{counter}.xlsx"
         return filename
     
+
+class ColumnTemplate(models.Model):
+    template = models.ForeignKey(CampaignTemplate, on_delete=models.CASCADE, related_name='columns')
+    part_names = models.CharField(max_length=100)
+    part_types = models.CharField(max_length=100, blank=True)
+    is_optional = models.BooleanField(default=False)
+    in_output_name = models.BooleanField(default=True)
+    part_separators = models.CharField(max_length=10, blank=True)
 
 class CorrespondanceTable(models.Model):
     name = models.CharField("Nom de la table de correspondance", max_length=100)

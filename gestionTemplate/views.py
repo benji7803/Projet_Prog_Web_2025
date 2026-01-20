@@ -3,13 +3,13 @@ from django.http import FileResponse
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
-from django.core.files.base import ContentFile
-from .models import CampaignTemplate, Campaign
-from .forms import CampaignTemplateForm, AnonymousSimulationForm
-from .plasmid_mapping import generate_plasmid_maps
-
+from django.forms import inlineformset_factory
 from django.core.files import File
-from .models import Campaign
+from django.db import transaction
+
+from .models import CampaignTemplate, Campaign, ColumnTemplate
+from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
+from .plasmid_mapping import generate_plasmid_maps
 
 import pandas as pd
 import uuid
@@ -39,46 +39,33 @@ def dashboard(request):
 
     return render(request, 'gestionTemplates/dashboard.html', context)
 
+ColumnFormSet = inlineformset_factory(
+    CampaignTemplate,
+    ColumnTemplate,
+    form = ColumnForm,
+    extra=2,
+    can_delete=True
+)
+
 def create_template(request):
     if request.method == 'POST':
-        name = request.POST.get('campaign_name')
-        description = request.POST.get('description')
-        enzyme = request.POST.get('enzyme')
-        output_separator = request.POST.get('output_separator', '-')
+        form = CampaignTemplateForm(request.POST)
+        parent = form.save(commit=False) if form.is_valid() else CampaignTemplate()
+        formset = ColumnFormSet(request.POST, instance=parent, prefix='columns')
 
-        part_names = request.POST.getlist('part_names[]')
-        part_types = request.POST.getlist('part_types[]')
-        is_optional = request.POST.getlist('is_optional[]')
-        in_output_name = request.POST.getlist('in_output_name[]')
-        part_separators = request.POST.getlist('part_separators[]')
-
-        try:
-            excel_content = generate_structural_template(
-                enzyme, name, output_separator,
-                part_names, part_types, is_optional, in_output_name, part_separators
-            )
-
-            # ⚡ Lien avec l'utilisateur connecté
-            user = request.user if request.user.is_authenticated else None
-            new_campaign = CampaignTemplate(
-                name=name,
-                description=description,
-                user=user
-            )
-            filename = CampaignTemplate.generate_unique_filename(name)
-            new_campaign.display_name = filename
-
-            new_campaign.file.save(filename, ContentFile(excel_content))
-            new_campaign.save()
-
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                parent.user = request.user if request.user.is_authenticated else None
+                parent.save()
+                formset.instance = parent
+                formset.save()
             return redirect('templates:dashboard')
+        
+    else:
+        form = CampaignTemplateForm()
+        formset = ColumnFormSet(instance=CampaignTemplate(), prefix='columns')
 
-        except Exception as e:
-            return render(request, 'gestionTemplates/create_edit.html', {
-                'error': f"Erreur lors de la création : {e}"
-            })
-
-    return render(request, 'gestionTemplates/create.html')
+    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset})
 
 def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt, p_in_name, p_seps):
     """

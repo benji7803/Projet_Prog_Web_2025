@@ -7,7 +7,7 @@
 {% block content %}
 <div class="container mt-4">
     <h1>Visualiser le plasmide</h1>
-    <p>Cette page vous permet, depuis un fichier GenBank (.gb), d'avoir une carte d'un plasmide spécifique.</p>
+    <p>Cette page vous permet, depuis un fichier GenBank (.gb), d'obtenir les cartes d'un plasmide spécifique.</p>
 
     {% if error %}
         <div class="alert alert-danger mt-3">{{ error }}</div>
@@ -28,6 +28,7 @@
     {% if linear_map or circular_map %}
         <hr class="my-4">
         <h3>Cartes générées :</h3>
+
         {% if linear_map %}
             <div class="mt-3 text-center">
                 <h5>Carte linéaire</h5>

@@ -13,5 +13,6 @@ urlpatterns = [
     path('team/<int:team_id>/invite/', views.invite_member, name='invite_member'),
     path('team/<int:team_id>/remove/<int:user_id>/', views.remove_member, name='remove_member'),
     path('team/<int:team_id>/promote/<int:user_id>/', views.promote_member, name='promote_member'),
+    path("administration", views.administration_view, name="administration"),
     path('team/<int:team_id>/delete/', views.delete_team, name='delete_team')
 ]

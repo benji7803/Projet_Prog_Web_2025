@@ -23,7 +23,7 @@ class CampaignTemplateForm(forms.ModelForm):
 # Formulaire pour la simulation anonyme
 class AnonymousSimulationForm(forms.Form):
     # --- CHAMPS REQUIS ---
-    template_file = forms.FileField(label="Fichier Template (.xlsx) *", required=True)
+    template_file = forms.FileField(label="Fichier de Campagne (.xlsx) *", required=True)
     plasmids_zip = forms.FileField(label="Archive des plasmides (.zip) *", required=True)
     mapping_file = forms.FileField(label="Correspondance Noms <-> ID (.csv) *", required=True)
 

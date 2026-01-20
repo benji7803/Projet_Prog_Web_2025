@@ -106,3 +106,8 @@ def delete_team(request, team_id):
         
     return redirect('users:profile') # Retour au profil après suppression
 
+def administration_view(request):
+
+    liste_user = UserModel.objects.all()
+
+    return render(request, 'users/administration.html', {"liste_utilisateur": liste_user})

@@ -394,8 +394,9 @@ def simulate(request):
 
                     # Pour l'utilisateur connecté, on redirige souvent vers le dashboard ou on renvoie le fichier stocké
                     # Ici, pour rester simple, on renvoie le fichier qui vient d'être sauvegardé
-                    return FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
-
+                    response = FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
+                    response["X-Suggested-Filename"] = final_zip_name
+                    return response
                 else:
                     # CAS ANONYME : On ne supprime PAS le dossier maintenant, 
                     # car FileResponse a besoin du fichier sur le disque pour l'envoyer au navigateur.

@@ -6,3 +6,4 @@ __pycache__/
 db.sqlite3
 temp_uploads/
 campaign_templates/
+simulations/

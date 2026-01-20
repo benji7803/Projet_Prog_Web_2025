@@ -39,11 +39,14 @@
                             </div>
 
                             <div class="btn-group">
-                                <a href="{{ campaign.template_file.url }}" class="btn btn-sm btn-outline-secondary" title="Template">Tpl</a>
+                                <a href="{{ campaign.template_file.url }}" class="btn btn-sm btn-outline-secondary" title="Template">Template</a>
 
                                 {% if campaign.result_file %}
                                     <a href="{{ campaign.result_file.url }}" class="btn btn-sm btn-primary">
                                         📥 Résultat
+                                    </a>
+                                    <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-sm btn-primary">
+                                        Visualiser les plasmides générés
                                     </a>
                                 {% endif %}
 

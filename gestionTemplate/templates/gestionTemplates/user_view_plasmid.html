@@ -1,14 +1,14 @@
 {% extends 'layout.html' %}
 
 {% block title %}
-    Visualiser les Plasmides 
+    Visualiser les Plasmides
 {% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h1>Visualiser les plasmides</h1>
-    <p>Page pour voir les plasmides dans l'ordre.</p>
-
+    <h1>Plasmides de la simulation {{ campaign.name }}: </h1>
+    <label>Date de création: {{ campaign.created_at|date:"d/m/Y H:i" }}</label>
+    
     {% if error %}
         <div class="alert alert-danger mt-3">{{ error }}</div>
     {% endif %}
@@ -16,7 +16,35 @@
         <div class="alert alert-success mt-3">{{ message }}</div>
     {% endif %}
 
-    
+    {% if plasmid_maps %}
+        <h2>Cartes des plasmides :</h2>
+        {% for name, linear, circular in plasmid_maps %}
+            <div class="card mb-4 p-3 shadow-sm">
+                <hr>
+                <h2 class="text-center"> {{ name }}</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Carte linéaire</h5>
+                        <img src="{{ linear }}" class="img-fluid" alt="Carte linéaire {{ name }}" style="max-width:50%; height:auto;">
+                    </div>
+                    <div class="mt-2">
+                    <a href="{{ linear }}" download class="btn btn-sm btn-outline-primary"> {{ name }}_lineaire.png</a>
+                    </div>
+                    <div class="col-md-6">
+                        <hr>
+                        <h5>Carte circulaire</h5>
+                        <img src="{{ circular }}" class="img-fluid" alt="Carte circulaire {{ name }}" style="max-width:50%; height:auto;">
+                    </div>
+                    <div class="mt-2">
+                    <a href="{{ circular }}" download class="btn btn-sm btn-outline-primary"> {{ name }}_circulaire.png</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Aucun plasmide à afficher.</p>
+    {% endif %}
+
 
 </div>
 {% endblock %}

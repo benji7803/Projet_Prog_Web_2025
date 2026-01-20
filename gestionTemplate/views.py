@@ -479,5 +479,36 @@ def view_plasmid(request):
     # Si GET : juste la page d’upload
     return render(request, 'gestionTemplates/view_plasmid.html')
 
-def user_view_plasmid(request):
-    return render(request, 'gestionTemplates/user_view_plasmid.html')
+def user_view_plasmid(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+    plasmid_maps = []  # liste des tuples (nom, linear_url, circular_url)
+
+    if campaign.result_file:
+        zip_path = campaign.result_file.path
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                # filtrer les .gb et enlever les dossiers
+                gb_files = [
+                    f for f in zip_ref.namelist()
+                    if f.lower().endswith('.gb')
+                ]
+
+                for f in gb_files:
+                    # extraire le fichier dans un dossier temporaire
+                    temp_dir = os.path.join("temp_uploads", "gb_temp")
+                    os.makedirs(temp_dir, exist_ok=True)
+                    extracted_path = zip_ref.extract(f, path=temp_dir)
+
+                    # générer les cartes
+                    linear_url, circular_url = generate_plasmid_maps(extracted_path)
+                    # récupérer juste le nom du plasmide pour l'affichage
+                    plasmid_name = os.path.basename(f).replace('.gb', '')
+                    plasmid_maps.append((plasmid_name, linear_url, circular_url))
+
+        except zipfile.BadZipFile:
+            plasmid_maps = []
+
+    return render(request, 'gestionTemplates/user_view_plasmid.html', {
+        'campaign': campaign,
+        'plasmid_maps': plasmid_maps
+    })

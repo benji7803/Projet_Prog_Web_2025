@@ -4,7 +4,7 @@ from .forms import CustomUserCreationForm, EquipeForm, InviteMemberForm
 from django.contrib.auth import login, logout
 from django.views.decorators.http import require_POST
 from django.contrib import messages
-from .models import Equipe, UserModel, MembreEquipe
+from .models import Equipe, UserModel, MembreEquipe, Tablecor, Seqcollection
 
 
 def register_view(request):
@@ -59,10 +59,12 @@ def create_team(request):
 def team_detail(request, team_id):
     team = get_object_or_404(Equipe, id=team_id)  
     liens_membres = team.membreequipe_set.all().select_related('user')
+    liste_table = team.tablecor.all()
 
     return render(request, 'users/team_detail.html', {
         'team': team,
-        'lien_membres': liens_membres
+        'lien_membres': liens_membres,
+        'list_table' : liste_table
     })
 
 def invite_member(request, team_id):
@@ -103,8 +105,32 @@ def delete_team(request, team_id):
     team = get_object_or_404(Equipe, id=team_id)
     if team.leader == request.user:
         team.delete()
+    return redirect('users:profile')
+
+def add_table(request, team_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    if request.method == "POST":
+        uploaded_table = request.FILES.get('uploaded_table')
         
-    return redirect('users:profile') # Retour au profil après suppression
+        if uploaded_table:
+            Tablecor.objects.create(
+                name = uploaded_table.name,
+                equipe = team,
+                fichier = uploaded_table
+            )
+            return redirect('users:team_detail', team_id=team.id)
+    return redirect('users:team_detail', team_id=team.id)
+
+def remove_table(request, team_id, table_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    table = get_object_or_404(Tablecor, id=table_id)
+    if request.method == "POST":
+        table.fichier.delete(save=False)
+        table.delete()
+
+    return redirect('users:team_detail', team_id=team_id)
+
+
 
 def administration_view(request):
 

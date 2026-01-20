@@ -8,7 +8,7 @@
     {% if request.user == team.leader %}
         <form action="{% url 'users:delete_team' team.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible.')">
             {% csrf_token %}
-            <button type="submit" class="btn-outline-danger" style="padding: 5px 10px; font-size: 0.8rem; background-color: red;">
+            <button type="submit" class="btn-outline-danger" style="padding: 5px 10px; font-size: 0.8rem; background-color: #8B0000;">
                 Supprimer l'équipe
             </button>
         </form>
@@ -33,7 +33,7 @@
                     </form>
                     <form action="{% url 'users:remove_member' team.id lien.user.id %}" method="post">
                         {% csrf_token %}
-                        <button type="submit" class="btn-icon btn-danger" title="Retirer du groupe">❌</button>
+                        <button type="submit" class="btn-icon btn-danger" title="Retirer de l'équipe" onclick="return confirm('Êtes-vous sûr de vouloir retirer {{ lien.user.get_full_name }} de l équipe ?');">❌</button>
                     </form>
                 </div>
                 {% endif %}
@@ -57,6 +57,30 @@
     </form>
 </div>
 {% endif %}
+
+<section class="files-section">
+    <h3>Tableau de correspondances</h3>
+    {% if request.user == team.leader %}
+        <form action="{% url 'users:add_table' team.id %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" id="file-upload" name="uploaded_table" accept=".xlsx">
+            <button type="submit">Ajouter le fichier</button>
+        </form>
+    {% endif %}
+    {% for table in list_table %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
+                <span>
+                    {{ table.name }}
+                </span>
+                {% if request.user == team.leader %}
+                <div style="display: flex; gap: 8px;">
+                    <form action="{% url 'users:remove_table' team.id table.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-icon" title="Supprimmer la table" style="background-color: #8B0000;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette table ?');">Supprimer</button>
+                    </form>
+                {% endif %}
+    {% endfor %}
+</section>
 
 <p style="margin-top: 40px;">
     <a href="{% url 'users:profile' %}" style="color: #666; text-decoration: none; font-size: 0.9rem;">← Retour au profil</a>

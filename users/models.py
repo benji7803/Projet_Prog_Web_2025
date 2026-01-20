@@ -16,6 +16,7 @@ class Equipe(models.Model):
         related_name='equipes_membres'
     )
 
+
     def __str__(self):
         return f"{self.name} (Chef: {self.leader.email})"
     
@@ -62,5 +63,13 @@ class UserModel(AbstractUser):
     def __str__(self):
         return self.email
 
+class Tablecor(models.Model):
+    name = models.CharField('table name', max_length=150)
+    equipe = models.ForeignKey(Equipe, on_delete=models.CASCADE, related_name='tablecor')
+    fichier = models.FileField(upload_to='equipes/docs/')
 
+class Seqcollection(models.Model):
+    name = models.CharField('seq name', max_length=150)
+    equipe = models.ForeignKey(Equipe, on_delete=models.CASCADE, related_name='seqcol')
+    fichier = models.FileField(upload_to='equipes/docs/')
 

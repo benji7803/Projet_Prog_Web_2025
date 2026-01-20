@@ -6,8 +6,10 @@ from django.core.files.storage import FileSystemStorage
 from django.core.files.base import ContentFile
 from .models import CampaignTemplate, Campaign
 from .forms import CampaignTemplateForm, AnonymousSimulationForm
-from django.contrib.auth.decorators import login_required
 from .plasmid_mapping import generate_plasmid_maps
+
+from django.core.files import File
+from .models import Campaign
 
 import pandas as pd
 import uuid
@@ -16,7 +18,6 @@ import pathlib
 import zipfile
 import tarfile
 import io
-import json
 import shutil
 
 # insillyclo
@@ -28,18 +29,14 @@ import insillyclo.simulator
 # Dashboard : Lister TOUS les templates (public)
 def dashboard(request):
     if request.user.is_authenticated:
-        # Templates de l'utilisateur connecté
-        templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
-        anonymous_templates = None  # pas d'anonymes pour un utilisateur connecté
-        unique_id = None
-        previous_templates = Campaign.objects.filter(user=request.user).order_by('-created_at')
+        liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
     else:
-        templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
+        liste_templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
 
     context = {
-        'templates': templates,
-        'previous_templates': previous_templates if request.user.is_authenticated else None
+        'liste_templates': liste_templates,
     }
+
     return render(request, 'gestionTemplates/dashboard.html', context)
 
 def create_template(request):
@@ -81,7 +78,7 @@ def create_template(request):
                 'error': f"Erreur lors de la création : {e}"
             })
 
-    return render(request, 'gestionTemplates/create_edit.html')
+    return render(request, 'gestionTemplates/create.html')
 
 def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt, p_in_name, p_seps):
     """
@@ -169,9 +166,9 @@ def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt,
     output.seek(0)
     return output.read()
 
-
 # Modification
 def edit_template(request, template_id):
+    
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
 
     if request.method == 'POST':
@@ -182,7 +179,7 @@ def edit_template(request, template_id):
     else:
         form = CampaignTemplateForm(instance=campaign)
 
-    return render(request, 'gestionTemplates/create_edit.html', {'form': form, 'action': 'Modifier'})
+    return render(request, 'gestionTemplates/modify_template.html', {'form': form})
 
 
 # Téléchargement
@@ -240,9 +237,7 @@ def submit(request):
     })
 
 
-from django.core.files import File
-from .models import Campaign  # Assurez-vous d'importer le modèle
-import json
+
 
 def simulate(request):
     # Choix du template HTML selon le statut

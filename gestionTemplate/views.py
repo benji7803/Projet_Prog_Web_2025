@@ -277,7 +277,7 @@ def simulate(request):
                         # Sauvegarde directe des fichiers uploadés dans le modèle
                         template_file=request.FILES['template_file'],
                         mapping_file=request.FILES['mapping_file'],
-                        plasmids_archive=request.FILES['plasmids_zip'], # Attention au nom du champ form vs model
+                        plasmid_archive=request.FILES['plasmids_zip'], # Attention au nom du champ form vs model
                         
                         # Options simples
                         enzyme=form.cleaned_data.get('enzyme'),
@@ -305,7 +305,7 @@ def simulate(request):
                     full_mapping_path = pathlib.Path(campaign_instance.mapping_file.path)
                     
                     # Extraction de l'archive stockée
-                    archive_path = pathlib.Path(campaign_instance.plasmids_archive.path)
+                    archive_path = pathlib.Path(campaign_instance.plasmid_archive.path)
                     with zipfile.ZipFile(archive_path, 'r') as zip_ref:
                         zip_ref.extractall(PLASMIDS_DIR)
                         

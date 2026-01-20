@@ -174,6 +174,7 @@ class Campaign(models.Model):
     # fichiers requis pour la simulation
     template_file = models.FileField(upload_to='simulations/templates/', null=True)
     mapping_file = models.FileField(upload_to='simulations/mappings/', null=True)
+    plasmid_archive = models.FileField(upload_to='simulations/plasmid_archive/', null=True)
     plasmids = models.ManyToManyField(Plasmide, blank=True)
 
     # optionnels

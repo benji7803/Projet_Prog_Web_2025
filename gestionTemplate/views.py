@@ -153,20 +153,31 @@ def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt,
     output.seek(0)
     return output.read()
 
+
 # Modification
 def edit_template(request, template_id):
     
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    colonne = campaign.columns
 
     if request.method == 'POST':
-        form = CampaignTemplateForm(request.POST, request.FILES, instance=campaign)
-        if form.is_valid():
-            form.save()
-            return redirect('dashboard')
+        form = CampaignTemplateForm(request.POST, instance=campaign)
+        parent = form.save(commit=False) if form.is_valid() else CampaignTemplate()
+        formset = ColumnFormSet(request.POST, instance=campaign, prefix='columns')
+
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                parent.user = request.user if request.user.is_authenticated else None
+                parent.save()
+                formset.instance = parent
+                formset.save()
+            return redirect('templates:dashboard')
+        
     else:
         form = CampaignTemplateForm(instance=campaign)
+        formset = ColumnFormSet(instance=campaign, prefix='columns')
 
-    return render(request, 'gestionTemplates/modify_template.html', {'form': form})
+    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset})
 
 
 # Téléchargement

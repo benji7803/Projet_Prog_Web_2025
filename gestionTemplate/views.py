@@ -46,35 +46,49 @@ def create_template(request):
     if request.method == 'POST':
         name = request.POST.get('campaign_name')
         description = request.POST.get('description')
-        enzyme = request.POST.get('enzyme')
-        output_separator = request.POST.get('output_separator', '-')
+        
+        # 1. Construction de l'objet JSON (dictionnaire)
+        structure_data = {
+            "enzyme": request.POST.get('enzyme'),
+            "output_separator": request.POST.get('output_separator', '-'),
+            "columns": []
+        }
 
+        # Récupération des listes
         part_names = request.POST.getlist('part_names[]')
         part_types = request.POST.getlist('part_types[]')
         is_optional = request.POST.getlist('is_optional[]')
         in_output_name = request.POST.getlist('in_output_name[]')
         part_separators = request.POST.getlist('part_separators[]')
 
-        try:
-            excel_content = generate_structural_template(
-                enzyme, name, output_separator,
-                part_names, part_types, is_optional, in_output_name, part_separators
-            )
+        # On combine les listes pour créer des objets par colonne
+        # On utilise zip pour itérer sur tout en même temps
+        for idx, p_name in enumerate(part_names):
+            structure_data["columns"].append({
+                "name": p_name,
+                "type": part_types[idx] if idx < len(part_types) else "",
+                "is_optional": is_optional[idx] if idx < len(is_optional) else "False",
+                "in_output_name": in_output_name[idx] if idx < len(in_output_name) else "True",
+                "separator": part_separators[idx] if idx < len(part_separators) else ""
+            })
 
-            # ⚡ Lien avec l'utilisateur connecté
+        try:
+            # 2. Sauvegarde en Base de Données uniquement
             user = request.user if request.user.is_authenticated else None
+            
+            # Génération du nom de fichier pour le futur téléchargement (pas de stockage disque)
+            filename = CampaignTemplate.generate_unique_filename(name)
+
             new_campaign = CampaignTemplate(
                 name=name,
                 description=description,
-                user=user
+                user=user,
+                display_name=filename,
+                structure=structure_data
             )
-            filename = CampaignTemplate.generate_unique_filename(name)
-            new_campaign.display_name = filename
-
-            new_campaign.file.save(filename, ContentFile(excel_content))
             new_campaign.save()
 
-            return redirect('templates:dashboard')
+            return redirect('templates:dashboard') # Vérifiez votre nom d'URL (ex: 'dashboard')
 
         except Exception as e:
             return render(request, 'gestionTemplates/create_edit.html', {
@@ -83,91 +97,58 @@ def create_template(request):
 
     return render(request, 'gestionTemplates/create_edit.html')
 
-def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt, p_in_name, p_seps):
+def generate_excel_from_structure(structure_data, name):
     """
-    Génère un fichier Excel VIDE de données mais avec la STRUCTURE complète.
+    Génère les bytes d'un fichier Excel à partir du JSON stocké en BDD.
     """
     output = io.BytesIO()
+    
+    enzyme = structure_data.get('enzyme', '')
+    out_sep = structure_data.get('output_separator', '-')
+    columns = structure_data.get('columns', [])
 
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         worksheet = writer.book.add_worksheet('Sheet1')
         writer.sheets['Sheet1'] = worksheet
 
-        # --- BLOC 1 : SETTINGS (Lignes 1 à 8) ---
+        # --- BLOC 1 : SETTINGS ---
         worksheet.write(0, 0, 'Assembly settings')
-
-        # Structure clé/valeur simple
         settings = [
             ('Restriction enzyme', enzyme),
             ('Name', name),
             ('Output separator', out_sep),
-            ('', ''),  # Lignes vides pour espacer
-            ('', ''),
-            ('', ''),
-            ('', '')
+            ('', ''), ('', ''), ('', ''), ('', '')
         ]
-
         for i, (key, val) in enumerate(settings):
             worksheet.write(i+1, 0, key)
             worksheet.write(i+1, 1, val)
 
-        # --- BLOC 2 : COMPOSITION HEADER (Lignes 9 à 13) ---
+        # --- BLOC 2 : HEADERS ---
         start_row = 9
-
-        # Colonne A : Les étiquettes des lignes de métadonnées
-        metadata_labels = [
-            'Assembly composition',           # Ligne 9
-            '',                               # Ligne 10 (Vide en A, label en B)
-            '',                               # Ligne 11
-            '',                               # Ligne 12
-            '',                               # Ligne 13
-            'Output plasmid id ↓'             # Ligne 14 (Header data)
-        ]
+        # (Votre code existant pour les labels A et B reste identique...)
+        metadata_labels = ['Assembly composition', '', '', '', '', 'Output plasmid id ↓']
         for i, label in enumerate(metadata_labels):
             worksheet.write(start_row + i, 0, label)
 
-        # Colonne B : Les types de métadonnées
-        param_labels = [
-            'Part name ->',                   # Ligne 9
-            'Part types ->',                  # Ligne 10
-            'Is optional part ->',            # Ligne 11
-            'Part name should be in output name ->',  # Ligne 12
-            'Part separator ->',              # Ligne 13
-            'OutputType (optional) ↓'         # Ligne 14
-        ]
+        param_labels = ['Part name ->', 'Part types ->', 'Is optional part ->', 
+                        'Part name should be in output name ->', 'Part separator ->', 'OutputType (optional) ↓']
         for i, label in enumerate(param_labels):
             worksheet.write(start_row + i, 1, label)
 
-        # Colonnes C à fin: Les valeurs définies par l'utilisateur
-        # On boucle sur chaque colonne définie dans le formulaire
-        for col_idx, p_name in enumerate(p_names):
-            # Commence à la colonne C
+        # --- BLOC 3 : COLONNES DYNAMIQUES (Depuis le JSON) ---
+        for col_idx, col_data in enumerate(columns):
             excel_col = 2 + col_idx
-
-            # Ligne 9 : Noms
-            worksheet.write(start_row, excel_col, p_name)
-
-            # Ligne 10 : Types (ex: 1, 2, 3...)
-            val_type = p_types[col_idx] if col_idx < len(p_types) else ""
-            worksheet.write(start_row + 1, excel_col, val_type)
-
-            # Ligne 11 : Optional (True/False)
-            val_opt = p_opt[col_idx] if col_idx < len(p_opt) else "False"
-            worksheet.write(start_row + 2, excel_col, val_opt)
-
-            # Ligne 12 : In Name (True/False)
-            val_in_name = p_in_name[col_idx] if col_idx < len(p_in_name) else "True"
-            worksheet.write(start_row + 3, excel_col, val_in_name)
-
-            # Ligne 13 : Separator
-            val_sep = p_seps[col_idx] if col_idx < len(p_seps) else ""
-            worksheet.write(start_row + 4, excel_col, val_sep)
-
-            # Ligne 14 : Le Header de la table de données
-            worksheet.write(start_row + 5, excel_col, p_name)
+            
+            worksheet.write(start_row, excel_col, col_data.get('name', ''))
+            worksheet.write(start_row + 1, excel_col, col_data.get('type', ''))
+            worksheet.write(start_row + 2, excel_col, col_data.get('is_optional', 'False'))
+            worksheet.write(start_row + 3, excel_col, col_data.get('in_output_name', 'True'))
+            worksheet.write(start_row + 4, excel_col, col_data.get('separator', ''))
+            # Header de la table de données
+            worksheet.write(start_row + 5, excel_col, col_data.get('name', ''))
 
     output.seek(0)
-    return output.read()
+    return output
 
 
 # Modification
@@ -187,8 +168,18 @@ def edit_template(request, template_id):
 
 # Téléchargement
 def download_template(request, template_id):
+    # 1. On récupère l'objet en BDD
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
-    return FileResponse(campaign.file.open(), as_attachment=True, filename=campaign.display_name)
+    
+    # 2. On génère le fichier Excel en mémoire (RAM) grâce au JSON
+    excel_file = generate_excel_from_structure(campaign.structure, campaign.name)
+    
+    # 3. On renvoie le fichier directement au navigateur
+    return FileResponse(
+        excel_file, 
+        as_attachment=True, 
+        filename=campaign.display_name
+    )
 
 
 def submit(request):
@@ -246,15 +237,12 @@ import json
 
 def simulate(request):
     # Choix du template HTML selon le statut
-    template_name = (
-        'gestionTemplates/sim.html'
-    )
+    template_name = 'gestionTemplates/sim.html'
 
     if request.method == 'POST':
         form = AnonymousSimulationForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                # === 1 SETUP SANDBOX (Commun aux deux cas pour l'exécution) ===
                 unique_id = str(uuid.uuid4())
                 BASE_MEDIA = pathlib.Path(settings.MEDIA_ROOT)
                 SANDBOX_DIR = BASE_MEDIA / 'temp_uploads' / unique_id
@@ -264,22 +252,20 @@ def simulate(request):
                 PLASMIDS_DIR.mkdir(parents=True, exist_ok=True)
                 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-                # === 2 GESTION UTILISATEUR CONNECTÉ VS ANONYME ===
                 campaign_instance = None
                 
+                # =========================================================
+                # CAS 1 : UTILISATEUR CONNECTÉ (Sauvegarde en BDD)
+                # =========================================================
                 if request.user.is_authenticated:
-                    # Création de l'objet Campaign en BDD
+                    # A. Création de l'objet Campaign
                     campaign_instance = Campaign(
                         user=request.user,
-                        name=f"Sim {unique_id[:8]}", # Ou un champ nom dans le formulaire
+                        name=f"Sim {unique_id[:8]}", 
                         status=Campaign.STATUS_RUNNING,
-                        
-                        # Sauvegarde directe des fichiers uploadés dans le modèle
                         template_file=request.FILES['template_file'],
                         mapping_file=request.FILES['mapping_file'],
-                        plasmids_archive=request.FILES['plasmids_zip'], # Attention au nom du champ form vs model
-                        
-                        # Options simples
+                        # PAS de 'plasmids_archive' ici pour éviter l'erreur
                         enzyme=form.cleaned_data.get('enzyme'),
                         default_concentration=form.cleaned_data.get('default_concentration') or 200.0,
                     )
@@ -290,32 +276,62 @@ def simulate(request):
                     if form.cleaned_data.get('concentration_file'):
                         campaign_instance.concentration_file = request.FILES['concentration_file']
                     
-                    # Gestion des options JSON (ex: primer pairs)
+                    # Options JSON
                     pairs_data = form.cleaned_data.get('primer_pairs')
                     options_dict = {}
                     if pairs_data:
                         options_dict['primer_pairs'] = pairs_data
                     campaign_instance.options = options_dict
                     
-                    campaign_instance.save() # Première sauvegarde pour écrire les fichiers sur le disque
+                    campaign_instance.save() # On sauvegarde pour obtenir un ID
                     
-                    # Récupération des chemins absolus depuis le modèle
-                    # .path donne le chemin absolu du fichier stocké par Django
+                    # B. Gestion MANUELLE de l'archive ZIP sur le disque
+                    uploaded_zip = request.FILES['plasmids_zip']
+                    zip_path_on_disk = SANDBOX_DIR / "temp_plasmids.zip"
+                    
+                    with open(zip_path_on_disk, 'wb+') as destination:
+                        for chunk in uploaded_zip.chunks():
+                            destination.write(chunk)
+
+                    # C. Extraction de l'archive
+                    with zipfile.ZipFile(zip_path_on_disk, 'r') as zip_ref:
+                        zip_ref.extractall(PLASMIDS_DIR)
+                    
+                    # D. Parsing et Création des objets Plasmide en BDD
+                    # On parcourt tous les dossiers extraits pour trouver les .gb
+                    for root, dirs, files in os.walk(PLASMIDS_DIR):
+                        for file in files:
+                            if file.lower().endswith('.gb') or file.lower().endswith('.gbk'):
+                                full_file_path = os.path.join(root, file)
+                                try:
+                                    # Utilisation de votre méthode statique dans models.py
+                                    new_plasmid = Plasmide.create_from_genbank(full_file_path)
+                                    
+                                    # Attribution à l'utilisateur et sauvegarde
+                                    new_plasmid.user = request.user
+                                    new_plasmid.save()
+                                    
+                                    # LIEN CLÉ : Ajout à la ManyToMany de la campagne
+                                    campaign_instance.plasmids.add(new_plasmid)
+                                    
+                                except Exception as e:
+                                    print(f"Erreur import plasmide {file}: {e}")
+                                    # On log l'erreur mais on ne bloque pas la simulation pour un fichier
+
+                    # E. Définition des chemins pour le simulateur
                     full_template_path = pathlib.Path(campaign_instance.template_file.path)
                     full_mapping_path = pathlib.Path(campaign_instance.mapping_file.path)
                     
-                    # Extraction de l'archive stockée
-                    archive_path = pathlib.Path(campaign_instance.plasmids_archive.path)
-                    with zipfile.ZipFile(archive_path, 'r') as zip_ref:
-                        zip_ref.extractall(PLASMIDS_DIR)
-                        
-                    # Chemins optionnels
                     final_primers_path = pathlib.Path(campaign_instance.primers_file.path) if campaign_instance.primers_file else None
                     final_conc_path = pathlib.Path(campaign_instance.concentration_file.path) if campaign_instance.concentration_file else None
 
+                # =========================================================
+                # CAS 2 : UTILISATEUR ANONYME (Fichiers temporaires uniquement)
+                # =========================================================
                 else:
-                    # --- LOGIQUE ANCIENNE (Sandbox pur) pour anonymes ---
                     fs = FileSystemStorage(location=SANDBOX_DIR)
+                    
+                    # Sauvegarde simple sur disque sans BDD
                     f_template = request.FILES['template_file']
                     full_template_path = SANDBOX_DIR / pathlib.Path(fs.save("campaign.xlsx", f_template))
                     
@@ -327,7 +343,6 @@ def simulate(request):
                     with zipfile.ZipFile(SANDBOX_DIR / path_zip, 'r') as zip_ref:
                         zip_ref.extractall(PLASMIDS_DIR)
                     
-                    # Optionnels Anonymes (Sauvegarde temporaire)
                     final_primers_path = None
                     if form.cleaned_data['primers_file']:
                         f_primers = request.FILES['primers_file']
@@ -339,7 +354,6 @@ def simulate(request):
                         final_conc_path = SANDBOX_DIR / pathlib.Path(fs.save("concentrations.csv", f_conc))
 
                 # === 3 PRÉPARATION PARAMÈTRES COMMUNS ===
-                # Récupération des données nettoyées du formulaire
                 enzyme_data = form.cleaned_data['enzyme']
                 final_enzyme_names = [enzyme_data] if enzyme_data else None
                 final_default_conc = form.cleaned_data['default_concentration'] or 200.0
@@ -359,7 +373,7 @@ def simulate(request):
                     settings=None,
                     input_template_filled=full_template_path,
                     input_parts_files=[full_mapping_path],
-                    gb_plasmids=PLASMIDS_DIR.glob('**/*.gb'),
+                    gb_plasmids=PLASMIDS_DIR.glob('**/*.gb'), # Cherche récursivement les .gb
                     output_dir=OUTPUT_DIR,
                     data_source=insillyclo.data_source.DataSourceHardCodedImplementation(),
                     primers_file=final_primers_path,
@@ -377,33 +391,28 @@ def simulate(request):
                 final_zip_path = SANDBOX_DIR / final_zip_name
                 make_zipfile(str(OUTPUT_DIR), str(final_zip_path))
 
-                # === BLOC DE SAUVEGARDE ET NETTOYAGE ===
+                # === RETOUR ===
                 if campaign_instance:
-                    #Sauvegarde définitive dans la BDD (et dossier media/)
+                    # Sauvegarde du résultat final en BDD
                     with open(final_zip_path, 'rb') as f:
                         campaign_instance.result_file.save(final_zip_name, File(f))
                         campaign_instance.status = Campaign.STATUS_DONE
                         campaign_instance.save()
                     
-                    #NETTOYAGE
-                    # Puisque le fichier est en sécurité dans /media/, on supprime le dossier de travail temporaire
+                    # Nettoyage dossier temporaire
                     try:
-                        shutil.rmtree(SANDBOX_DIR) # Supprime le dossier uuid et tout son contenu
+                        shutil.rmtree(SANDBOX_DIR)
                     except OSError as e:
-                        print(f"Erreur lors du nettoyage du dossier temporaire : {e}")
+                        print(f"Erreur nettoyage : {e}")
 
-                    # Pour l'utilisateur connecté, on redirige souvent vers le dashboard ou on renvoie le fichier stocké
-                    # Ici, pour rester simple, on renvoie le fichier qui vient d'être sauvegardé
                     return FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
 
                 else:
-                    # CAS ANONYME : On ne supprime PAS le dossier maintenant, 
-                    # car FileResponse a besoin du fichier sur le disque pour l'envoyer au navigateur.
+                    # Anonyme : On laisse le fichier temporaire pour le téléchargement
                     return FileResponse(open(final_zip_path, 'rb'), as_attachment=True, filename=final_zip_name)
 
-
             except Exception as e:
-                # Gestion des erreurs en BDD
+                # Gestion d'erreur (Statut Failed en BDD)
                 if campaign_instance:
                     campaign_instance.status = Campaign.STATUS_FAILED
                     campaign_instance.error_message = str(e)
@@ -417,7 +426,6 @@ def simulate(request):
     else:
         form = AnonymousSimulationForm()
     
-    # Contexte pour afficher l'historique au chargement de la page (GET)
     context = {'form': form}
     if request.user.is_authenticated:
         context['previous_templates'] = Campaign.objects.filter(user=request.user).order_by('-created_at')

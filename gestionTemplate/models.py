@@ -9,7 +9,7 @@ class CampaignTemplate(models.Model):
     description = models.TextField("Description", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    file = models.FileField(upload_to='campaign_templates/', verbose_name="Fichier Excel")
+    structure = models.JSONField("Structure du Template", default=dict)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     team = models.ForeignKey('users.Equipe', on_delete=models.CASCADE, null=True, blank=True)
     display_name = models.CharField("Nom d'affichage", max_length=150, blank=True)

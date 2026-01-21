@@ -1,26 +1,19 @@
 from django import forms
 from .models import CampaignTemplate
 
-
 # Formulaire pour créer un template
 class CampaignTemplateForm(forms.ModelForm):
     class Meta:
         model = CampaignTemplate
-        fields = ['name', 'description', 'file']
+        fields = ['name', 'description'] 
+        
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'file': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
-    def clean_file(self):
-        file = self.cleaned_data['file']
-        if not file.name.endswith('.xlsx'):
-            raise forms.ValidationError("Le fichier doit être au format Excel (.xlsx)")
-        return file
 
-
-# Formulaire pour la simulation anonyme
+# Formulaire pour la simulation anonyme (Lui ne change pas pour l'instant)
 class AnonymousSimulationForm(forms.Form):
     # --- CHAMPS REQUIS ---
     template_file = forms.FileField(label="Fichier de Campagne (.xlsx) *", required=True)
@@ -28,15 +21,12 @@ class AnonymousSimulationForm(forms.Form):
     mapping_file = forms.FileField(label="Correspondance Noms <-> ID (.csv) *", required=True)
 
     # --- CHAMPS OPTIONNELS (FICHIERS) ---
-
-    # Amorces
     primers_file = forms.FileField(
         label="Fichier des amorces (.csv)",
         required=False,
         help_text="Si vide, aucune PCR ne sera simulée."
     )
 
-    # Concentrations
     concentration_file = forms.FileField(
         label="Concentrations spécifiques (.csv)",
         required=False,

@@ -1,14 +1,14 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="card shadow">
+<div class="container mt-5">
+    <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
-        {% if user.is_authenticated %}
-            <h2 class="h4 mb-0">Simulation de Campagne (Utilisateur connecté)</h2>
-        {% else %}
-            <h2 class="h4 mb-0">Simulation de Campagne (Utilisateur anonyme)</h2>
-        {% endif %}
+            {% if user.is_authenticated %}
+                <h2 class="h4 mb-0">Simulation de Campagne (Utilisateur connecté)</h2>
+            {% else %}
+                <h2 class="h4 mb-0">Simulation de Campagne (Utilisateur anonyme)</h2>
+            {% endif %}
         </div>
         <div class="card-body">
 
@@ -22,14 +22,14 @@
             <form id="simulation-form" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
-                <h4 class="text-secondary border-bottom pb-2 mb-3">1 Fichiers Requis</h4>
-                <div class="row mb-3">
+                <!-- Fichiers requis -->
+                <h4 class="text-secondary border-bottom pb-2 mb-3">1. Fichiers requis</h4>
+                <div class="row mb-4">
                     <div class="col-md-12 mb-3">
                         {{ form.template_file.label_tag }}
                         {{ form.template_file }}
-                        <small class="text-danger">{{ form.template_file.errors }}</small>
+                        <small class="text-danger d-block">{{ form.template_file.errors }}</small>
                     </div>
-
                     <div class="col-md-6 mb-3">
                         {{ form.plasmids_zip.label_tag }}
                         {{ form.plasmids_zip }}
@@ -42,21 +42,22 @@
                     </div>
                 </div>
 
-                <h4 class="text-secondary border-bottom pb-2 mb-3 mt-4">2 Paramètres Optionnels</h4>
+                <!-- Paramètres optionnels -->
+                <h4 class="text-secondary border-bottom pb-2 mb-3 mt-4">2. Paramètres optionnels</h4>
                 <div class="row">
                     <div class="col-md-5 mb-4">
-                        <div class="card bg-light border-0 h-100">
+                        <div class="card bg-light border-0 h-100 shadow-sm">
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label class="form-label">Enzyme</label>
+                                    <label class="form-label fw-bold">Enzyme</label>
                                     {{ form.enzyme }} 
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Concentration par défaut (ng/µL)</label>
+                                    <label class="form-label fw-bold">Concentration par défaut (ng/µL)</label>
                                     <input type="number" step="0.1" name="default_concentration" class="form-control" placeholder="Laisser vide = 200">
                                 </div>
                                 <div class="mb-3">
-                                    <label class="form-label">Paire d'amorces</label>
+                                    <label class="form-label fw-bold">Paire d'amorces</label>
                                     <input type="text" name="primer_pairs" class="form-control" placeholder="Ex: P29,P30">
                                     <small class="text-muted">Laisser vide = None</small>
                                 </div>
@@ -65,7 +66,7 @@
                     </div>
                     
                     <div class="col-md-7">
-                        <div class="card border-0 h-100">
+                        <div class="card border-0 h-100 shadow-sm">
                             <div class="card-body">
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">{{ form.primers_file.label }}</label>
@@ -82,68 +83,57 @@
                     </div>
                 </div>
 
-                <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-success" id="simulate-btn">
+                <!-- Boutons -->
+                <div class="d-grid gap-2 mt-4">
+                    <button type="submit" class="btn btn-success fw-bold" id="simulate-btn">
                         Lancer la simulation et télécharger les résultats
                     </button>
                     <a href="{% url 'templates:dashboard' %}" class="btn btn-outline-secondary">Annuler</a>
                 </div>
             </form>
 
-            <!-- === Script de gestion du téléchargement et redirection === -->
+            <!-- Script de téléchargement et redirection -->
             <script>
             document.addEventListener('DOMContentLoaded', function() {
                 const form = document.getElementById('simulation-form');
                 const simulateBtn = document.getElementById('simulate-btn');
 
                 form.addEventListener('submit', function(event) {
-                    event.preventDefault(); // empêche le rechargement
+                    event.preventDefault();
                     const formData = new FormData(form);
 
                     simulateBtn.disabled = true;
                     simulateBtn.innerText = "Simulation en cours...";
 
-                    fetch("", {
-                        method: "POST",
-                        body: formData
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error("Erreur pendant la simulation (" + response.status + ")");
-                        }
-                        // 🧾 Récupère le nom du fichier depuis les headers HTTP
-                        const contentDisposition = response.headers.get("Content-Disposition");
-                        const headerName = response.headers.get("X-Suggested-Filename");
-                        let filename = "resultats_simulation.zip";
-
-                        if (headerName) {
-                            filename = headerName;
-                        } else if (contentDisposition) {
-                            const match = contentDisposition.match(/filename="?([^"]+)"?/);
-                            if (match) filename = match[1];
-                        }
-
-                        return response.blob().then(blob => ({ blob, filename }));
-                    })
-                    .then(({ blob, filename }) => {
-                        // Déclenche le téléchargement avec le bon nom
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        window.URL.revokeObjectURL(url);
-
-                        // Redirection vers le dashboard
-                        window.location.href = "{% url 'templates:dashboard' %}";
-                    })
-                    .catch(error => {
-                        alert("Erreur : " + error.message);
-                        simulateBtn.disabled = false;
-                        simulateBtn.innerText = "Lancer la simulation et télécharger les résultats";
-                    });
+                    fetch("", { method: "POST", body: formData })
+                        .then(response => {
+                            if (!response.ok) throw new Error("Erreur pendant la simulation (" + response.status + ")");
+                            const contentDisposition = response.headers.get("Content-Disposition");
+                            const headerName = response.headers.get("X-Suggested-Filename");
+                            let filename = "resultats_simulation.zip";
+                            if (headerName) filename = headerName;
+                            else if (contentDisposition) {
+                                const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                                if (match) filename = match[1];
+                            }
+                            return response.blob().then(blob => ({ blob, filename }));
+                        })
+                        .then(({ blob, filename }) => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            window.URL.revokeObjectURL(url);
+                            window.location.href = "{% url 'templates:dashboard' %}";
+                        })
+                        .catch(error => {
+                            alert("Erreur : " + error.message);
+                            simulateBtn.disabled = false;
+                            simulateBtn.innerText = "Lancer la simulation et télécharger les résultats";
+                        });
                 });
             });
             </script>

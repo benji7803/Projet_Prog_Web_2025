@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -13,38 +14,37 @@
 </head>
 <body>
     <nav>
-        <a href="{% url 'templates:dashboard' %}" title="Mes Campagnes">Mes Templates</a> | 
-        <a href="{% url 'templates:create_template' %}" title="Créer template">Nouveau</a> |
-        <a href="{% url 'templates:view_plasmid' %}" title="Visualiser Plasmide">Visualiser</a> |
+        <!-- Partie gauche : liens principaux -->
+        <div class="nav-left">
+            <a href="{% url 'templates:dashboard' %}" title="Mes Campagnes">Mes Templates</a>
+            <a href="{% url 'templates:create_template' %}" title="Créer template">Nouveau</a>
+            <a href="{% url 'templates:simulate' %}" title="Simuler Assemblage">Simuler</a>
+            <a href="{% url 'templates:submit' %}" title="Soumettre Assemblage">Soumettre</a>
+            <a href="{% url 'templates:view_plasmid' %}" title="Visualiser Plasmide">Visualiser</a>
+        </div>
 
-        {% if user.isAdministrator %}
-            <a href="{% url 'users:administration' %}" title="Administration">Administration</a> | 
-        {% endif %}
-
+        <!-- Partie droite : déconnexion et compte utilisateur -->
         {% if user.is_authenticated %}
-            <form method="post" action="{% url 'users:logout' %}" style="display:inline">
+        <div class="nav-right">
+            <!-- Déconnexion -->
+            <form method="post" action="{% url 'users:logout' %}" class="inline-form">
                 {% csrf_token %}
-                <button type="submit" class="deconnexion">
-                   Déconnexion
-                </button>
+                <button type="submit" class="btn-nav">Déconnexion 🔒</button>
             </form>
 
-            <div style="position: absolute; right: 10px; top: 5%; transform: translateY(-50%);">
-            <span style="font-weight: bold; margin-right: 5px;">
-                {{ user.first_name|default:user.email }}
-            </span>
-            <form method="post" action="{% url 'users:profile' %}" style="display:inline">
+            <!-- Profil / compte utilisateur -->
+            <form method="post" action="{% url 'users:profile' %}" class="inline-form">
                 {% csrf_token %}
-                <button type="submit" style="background:none; border:none; padding:0; font:inherit; cursor:pointer; color: white;">
-                    🚹
-                </button>
+                <button type="submit" class="btn-nav icon-btn" title="Mon compte">👤 {{ user.first_name|default:user.email }}</button>
             </form>
         </div>
         {% else %}
-            <a href="{% url 'users:register' %}" title="Inscription">Inscription</a> |
-            <a href="{% url 'users:login' %}" title="Connexion">Connexion</a>
+        <div class="nav-right">
+            <a href="{% url 'users:register' %}">Inscription</a>
+            <span class="nav-sep">|</span>
+            <a href="{% url 'users:login' %}">Connexion</a>
+        </div>
         {% endif %}
-
     </nav>
 
     <main>

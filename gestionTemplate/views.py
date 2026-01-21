@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.core.files.base import ContentFile
-from .models import CampaignTemplate, Campaign
+from .models import CampaignTemplate, Campaign, Plasmide
 from .forms import CampaignTemplateForm, AnonymousSimulationForm
 from django.contrib.auth.decorators import login_required
 from .plasmid_mapping import generate_plasmid_maps
@@ -265,7 +265,9 @@ def simulate(request):
                         status=Campaign.STATUS_RUNNING,
                         template_file=request.FILES['template_file'],
                         mapping_file=request.FILES['mapping_file'],
-                        # PAS de 'plasmids_archive' ici pour éviter l'erreur
+                        plasmid_archive=request.FILES['plasmids_zip'], # Attention au nom du champ form vs model
+                        
+                        # Options simples
                         enzyme=form.cleaned_data.get('enzyme'),
                         default_concentration=form.cleaned_data.get('default_concentration') or 200.0,
                     )
@@ -300,28 +302,44 @@ def simulate(request):
                     # D. Parsing et Création des objets Plasmide en BDD
                     # On parcourt tous les dossiers extraits pour trouver les .gb
                     for root, dirs, files in os.walk(PLASMIDS_DIR):
+                        
+                        # --- AJOUT : Calcul du nom du dossier ---
+                        # On regarde le chemin relatif par rapport au dossier d'extraction
+                        # Ex: si root est ".../plasmids/Niveau1/Promoteurs", rel_path sera "Niveau1/Promoteurs"
+                        rel_path = os.path.relpath(root, PLASMIDS_DIR)
+                        
+                        # Si le fichier est à la racine, rel_path vaut "." -> on met None ou ""
+                        current_dossier = rel_path if rel_path != "." else None
+                        # ----------------------------------------
+
                         for file in files:
                             if file.lower().endswith('.gb') or file.lower().endswith('.gbk'):
                                 full_file_path = os.path.join(root, file)
                                 try:
-                                    # Utilisation de votre méthode statique dans models.py
-                                    new_plasmid = Plasmide.create_from_genbank(full_file_path)
+                                    # --- MODIFICATION : On passe le dossier ---
+                                    new_plasmid = Plasmide.create_from_genbank(
+                                        full_file_path, 
+                                        dossier_nom=current_dossier
+                                    )
                                     
-                                    # Attribution à l'utilisateur et sauvegarde
                                     new_plasmid.user = request.user
                                     new_plasmid.save()
                                     
-                                    # LIEN CLÉ : Ajout à la ManyToMany de la campagne
                                     campaign_instance.plasmids.add(new_plasmid)
                                     
                                 except Exception as e:
                                     print(f"Erreur import plasmide {file}: {e}")
-                                    # On log l'erreur mais on ne bloque pas la simulation pour un fichier
 
                     # E. Définition des chemins pour le simulateur
                     full_template_path = pathlib.Path(campaign_instance.template_file.path)
                     full_mapping_path = pathlib.Path(campaign_instance.mapping_file.path)
                     
+                    # Extraction de l'archive stockée
+                    archive_path = pathlib.Path(campaign_instance.plasmid_archive.path)
+                    with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+                        zip_ref.extractall(PLASMIDS_DIR)
+                        
+                    # Chemins optionnels
                     final_primers_path = pathlib.Path(campaign_instance.primers_file.path) if campaign_instance.primers_file else None
                     final_conc_path = pathlib.Path(campaign_instance.concentration_file.path) if campaign_instance.concentration_file else None
 
@@ -405,8 +423,11 @@ def simulate(request):
                     except OSError as e:
                         print(f"Erreur nettoyage : {e}")
 
-                    return FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
-
+                    # Pour l'utilisateur connecté, on redirige souvent vers le dashboard ou on renvoie le fichier stocké
+                    # Ici, pour rester simple, on renvoie le fichier qui vient d'être sauvegardé
+                    response = FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
+                    response["X-Suggested-Filename"] = final_zip_name
+                    return response
                 else:
                     # Anonyme : On laisse le fichier temporaire pour le téléchargement
                     return FileResponse(open(final_zip_path, 'rb'), as_attachment=True, filename=final_zip_name)

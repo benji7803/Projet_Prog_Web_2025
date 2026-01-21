@@ -19,7 +19,7 @@
             {% endif %}
 
             <!-- === Formulaire de simulation === -->
-            <form method="post" enctype="multipart/form-data" >
+            <form id="simulation-form" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
                 <h4 class="text-secondary border-bottom pb-2 mb-3">1 Fichiers Requis</h4>
@@ -83,12 +83,71 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <button type="submit" class="btn btn-success">
+                    <button type="submit" class="btn btn-success" id="simulate-btn">
                         Lancer la simulation et télécharger les résultats
                     </button>
                     <a href="{% url 'templates:dashboard' %}" class="btn btn-outline-secondary">Annuler</a>
                 </div>
             </form>
+
+            <!-- === Script de gestion du téléchargement et redirection === -->
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const form = document.getElementById('simulation-form');
+                const simulateBtn = document.getElementById('simulate-btn');
+
+                form.addEventListener('submit', function(event) {
+                    event.preventDefault(); // empêche le rechargement
+                    const formData = new FormData(form);
+
+                    simulateBtn.disabled = true;
+                    simulateBtn.innerText = "Simulation en cours...";
+
+                    fetch("", {
+                        method: "POST",
+                        body: formData
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("Erreur pendant la simulation (" + response.status + ")");
+                        }
+                        // 🧾 Récupère le nom du fichier depuis les headers HTTP
+                        const contentDisposition = response.headers.get("Content-Disposition");
+                        const headerName = response.headers.get("X-Suggested-Filename");
+                        let filename = "resultats_simulation.zip";
+
+                        if (headerName) {
+                            filename = headerName;
+                        } else if (contentDisposition) {
+                            const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                            if (match) filename = match[1];
+                        }
+
+                        return response.blob().then(blob => ({ blob, filename }));
+                    })
+                    .then(({ blob, filename }) => {
+                        // Déclenche le téléchargement avec le bon nom
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+
+                        // Redirection vers le dashboard
+                        window.location.href = "{% url 'templates:dashboard' %}";
+                    })
+                    .catch(error => {
+                        alert("Erreur : " + error.message);
+                        simulateBtn.disabled = false;
+                        simulateBtn.innerText = "Lancer la simulation et télécharger les résultats";
+                    });
+                });
+            });
+            </script>
+
         </div>
     </div>
 </div>

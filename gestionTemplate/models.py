@@ -61,7 +61,7 @@ class Plasmide(models.Model):
     gc_content = models.FloatField("GC (%)", null=True, blank=True)
 
     @classmethod
-    def create_from_genbank(cls, filepath):
+    def create_from_genbank(cls, filepath, dossier_nom=None):
         """
         Parse a simple GenBank file and create/save a Plasmide instance.
         Returns the created instance.
@@ -135,6 +135,7 @@ class Plasmide(models.Model):
         plasmide = cls.objects.create(
             name=name,
             description=fields.get('definition',''),
+            dossier=dossier_nom,
             accession=fields.get('accession',''),
             version=fields.get('version',''),
             genbank_definition=fields.get('definition','')[:255],
@@ -174,6 +175,7 @@ class Campaign(models.Model):
     # fichiers requis pour la simulation
     template_file = models.FileField(upload_to='simulations/templates/', null=True)
     mapping_file = models.FileField(upload_to='simulations/mappings/', null=True)
+    plasmid_archive = models.FileField(upload_to='simulations/plasmid_archive/', null=True)
     plasmids = models.ManyToManyField(Plasmide, blank=True)
 
     # optionnels

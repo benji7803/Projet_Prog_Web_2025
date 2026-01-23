@@ -7,7 +7,7 @@ from django.forms import inlineformset_factory
 from django.core.files import File
 from django.db import transaction
 
-from .models import CampaignTemplate, Campaign, ColumnTemplate
+from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
 from .plasmid_mapping import generate_plasmid_maps
 
@@ -18,6 +18,7 @@ import pathlib
 import zipfile
 import tarfile
 import shutil
+import tempfile
 
 # insillyclo
 from insillyclo.template_generator import make_template
@@ -151,7 +152,84 @@ def submit(request):
     inputs_name = []
     file_names = []
 
+    # Récupérer les collections et fichiers de correspondance de l'utilisateur
+    plasmid_collections = []
+    mapping_templates = []
+    if request.user.is_authenticated:
+        plasmid_collections = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
+        mapping_templates = MappingTemplate.objects.filter(user=request.user).order_by('-created_at')
+
     if request.method == "POST":
+        # ===== UPLOAD NOUVELLE COLLECTION DE PLASMIDES =====
+        if 'save_collection' in request.POST and request.user.is_authenticated:
+            collection_name = request.POST.get('collection_name', '').strip()
+            collection_desc = request.POST.get('collection_description', '').strip()
+            plasmid_archive = request.FILES.get('collection_plasmid_archive')
+            
+            if collection_name and plasmid_archive:
+                try:
+                    # Créer la collection
+                    collection = PlasmidCollection.objects.create(
+                        user=request.user,
+                        name=collection_name,
+                        description=collection_desc,
+                        plasmid_archive=plasmid_archive
+                    )
+                    
+                    # Parser et créer les Plasmide depuis l'archive ZIP
+                    import tempfile
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        temp_path = pathlib.Path(temp_dir)
+                        
+                        # Extraire l'archive
+                        with zipfile.ZipFile(plasmid_archive) as z:
+                            z.extractall(temp_path)
+                        
+                        # Trouver tous les fichiers .gb
+                        for gb_file in temp_path.glob('**/*.gb'):
+                            try:
+                                # Parser le fichier et créer le Plasmide
+                                plasmide = Plasmide.create_from_genbank(
+                                    str(gb_file),
+                                    dossier_nom=collection_name
+                                )
+                                # Lier le plasmide à la collection
+                                collection.plasmides.add(plasmide)
+                            except Exception as e:
+                                print(f"Erreur parsing {gb_file.name}: {str(e)}")
+                    
+                    message = f"✅ Collection '{collection_name}' créée avec succès ! ({collection.plasmides.count()} plasmides détectés)"
+                    # Rafraîchir la liste
+                    plasmid_collections = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
+                except Exception as e:
+                    message = f"Erreur lors de la création de la collection : {str(e)}"
+            else:
+                message = "Veuillez remplir le nom de la collection et uploader un fichier."
+
+        # ===== UPLOAD NOUVEAU FICHIER DE CORRESPONDANCE =====
+        elif 'save_mapping' in request.POST and request.user.is_authenticated:
+            mapping_name = request.POST.get('mapping_name', '').strip()
+            mapping_desc = request.POST.get('mapping_description', '').strip()
+            mapping_file = request.FILES.get('mapping_file_upload')
+            
+            if mapping_name and mapping_file:
+                try:
+                    # Créer le fichier de correspondance
+                    template = MappingTemplate.objects.create(
+                        user=request.user,
+                        name=mapping_name,
+                        description=mapping_desc,
+                        mapping_file=mapping_file
+                    )
+                    message = f"Fichier de correspondance '{mapping_name}' créé avec succès !"
+                    # Rafraîchir la liste
+                    mapping_templates = MappingTemplate.objects.filter(user=request.user).order_by('-created_at')
+                except Exception as e:
+                    message = f"Erreur lors de la création du fichier : {str(e)}"
+            else:
+                message = "Veuillez remplir le nom du fichier et uploader un fichier."
+
+        # ===== UPLOAD ET TRAITEMENT FICHIER EXCEL =====
         uploaded_file = request.FILES.get('uploaded_file')
         plasmid_archive = request.FILES.get('plasmid_archive')
 
@@ -171,7 +249,7 @@ def submit(request):
 
         # 2 Gestion de l'archive
         if plasmid_archive:
-            # AA partir des données stockées
+            # A partir des données stockées
             inputs_name = request.session.get('inputs_name', [])
             data_html = request.session.get('data_html', None)
 
@@ -190,7 +268,9 @@ def submit(request):
         "data_html": data_html,
         "message": message,
         "nb_plasmid": inputs_name,
-        "file_names": file_names
+        "file_names": file_names,
+        "plasmid_collections": plasmid_collections,
+        "mapping_templates": mapping_templates,
     })
 
 
@@ -437,12 +517,12 @@ def view_plasmid(request):
         # Vérification du fichier envoyé
         if not plasmid_file:
             return render(request, 'gestionTemplates/view_plasmid.html', {
-                'error': "⚠️ Aucun fichier n’a été sélectionné."
+                'error': "Aucun fichier n’a été sélectionné."
             })
 
         if not plasmid_file.name.lower().endswith('.gb'):
             return render(request, 'gestionTemplates/view_plasmid.html', {
-                'error': "❌ Le fichier doit être au format .gb (GenBank)."
+                'error': "Le fichier doit être au format .gb (GenBank)."
             })
 
         # --- Sauvegarde temporaire du fichier GenBank ---
@@ -463,7 +543,7 @@ def view_plasmid(request):
 
         # --- Affichage dans le template ---
         return render(request, 'gestionTemplates/view_plasmid.html', {
-            'message': f"Fichier '{plasmid_file.name}' traité avec succès ✅",
+            'message': f"Fichier '{plasmid_file.name}' traité avec succès",
             'linear_map': linear_url,
             'circular_map': circular_url
         })

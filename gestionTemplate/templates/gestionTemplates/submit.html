@@ -3,7 +3,263 @@
 {% block title %}Soumettre un template{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5 mb-5">
+    <h1 class="mb-4 text-center">Soumettre un Template de Simulation</h1>
+
+    {% if message %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endif %}
+
+    <!-- ===== SECTION 1: FICHIER EXCEL PRINCIPAL ===== -->
+    <div class="card mb-5 shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Fichier Template</h4>
+        </div>
+        <div class="card-body p-4">
+            <p class="text-muted mb-4">Uploadez votre fichier de campagne (.xlsx) contenant la configuration</p>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="file-upload" class="form-label fw-bold">Fichier Excel (.xlsx) *</label>
+                    <input type="file" id="file-upload" name="uploaded_file" class="form-control form-control-lg" accept=".xlsx" required>
+                    <small class="text-muted d-block mt-2">Sélectionnez votre fichier de configuration</small>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    ✓ Vérifier le fichier
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== SECTION 2: COLLECTION DE PLASMIDES ===== -->
+    <div class="card mb-5 shadow">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0">Collection de Plasmides</h4>
+        </div>
+        <div class="card-body p-4">
+            {% if user.is_authenticated %}
+                <!-- Tabs pour créer ou utiliser une collection -->
+                <ul class="nav nav-tabs mb-4" role="tablist">
+                    {% if plasmid_collections %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="use-collection-tab" data-bs-toggle="tab" data-bs-target="#use-collection-pane" type="button" role="tab" aria-controls="use-collection-pane" aria-selected="false">
+                            📁 Mes collections sauvegardées ({{ plasmid_collections|length }})
+                        </button>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <div class="tab-content">
+                    <!-- Tab: Créer une nouvelle collection -->
+                    <div class="tab-pane fade show active" id="create-collection-pane" role="tabpanel" aria-labelledby="create-collection-tab">
+                        <p class="text-muted mb-4">Sauvegardez une nouvelle collection pour la réutiliser dans d'autres simulations</p>
+                        <form method="POST" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="collection-name" class="form-label fw-bold">Nom de la collection *</label>
+                                <input type="text" id="collection-name" name="collection_name" class="form-control" placeholder="Ex: Plasmides projet 2025" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="collection-desc" class="form-label fw-bold">Description (optionnel)</label>
+                                <textarea id="collection-desc" name="collection_description" class="form-control" rows="2" placeholder="Décrivez cette collection..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="collection-file" class="form-label fw-bold">Archive ZIP (.zip) *</label>
+                                <input type="file" id="collection-file" name="collection_plasmid_archive" class="form-control form-control-lg" accept=".zip" required>
+                                <small class="text-muted d-block mt-2">Archive contenant vos fichiers GenBank (.gb)</small>
+                            </div>
+                            <button type="submit" name="save_collection" value="1" class="btn btn-success btn-lg">
+                                💾 Sauvegarder cette collection
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Tab: Utiliser une collection existante -->
+                    {% if plasmid_collections %}
+                    <div class="tab-pane fade" id="use-collection-pane" role="tabpanel" aria-labelledby="use-collection-tab">
+                        <p class="text-muted mb-4">Sélectionnez une collection de plasmides déjà sauvegardée</p>
+                        <div class="list-group">
+                            {% for collection in plasmid_collections %}
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                    <div class="flex-grow-1">
+                                        <h5 class="mb-1">{{ collection.name }}</h5>
+                                        {% if collection.description %}
+                                            <p class="mb-1 text-muted">{{ collection.description }}</p>
+                                        {% endif %}
+                                        <small class="text-muted">
+                                            🧬 {{ collection.plasmides.count }} plasmide(s) • 📅 {{ collection.created_at|date:"d/m/Y" }}
+                                        </small>
+                                    </div>
+                                    <form method="POST" class="ms-3">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="plasmid_collection_id" value="{{ collection.id }}">
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Option upload direct pour workflow normal -->
+                {% if data_html %}
+                <hr class="my-4">
+                <div class="alert alert-secondary">
+                    <strong>OU</strong> Uploader une archive directement (sans sauvegarder) :
+                </div>
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="plasmid-archive-direct" class="form-label fw-bold">Archive ZIP (.zip, .tar, .tar.gz)</label>
+                        <input type="file" id="plasmid-archive-direct" name="plasmid_archive" class="form-control form-control-lg" accept=".zip,.tar,.tar.gz">
+                        <small class="text-muted d-block mt-2">Archive contenant vos fichiers GenBank (.gb)</small>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg">
+                        📤 Vérifier l'archive
+                    </button>
+                </form>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-info mb-4">
+                    <strong>💡 Conseil :</strong> <a href="{% url 'users:login' %}" class="alert-link">Connectez-vous</a> pour sauvegarder vos collections et les réutiliser.
+                </div>
+                <p class="text-muted mb-4">Ou uploadez une archive directement :</p>
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="plasmid-archive-anon" class="form-label fw-bold">Archive ZIP (.zip, .tar, .tar.gz) *</label>
+                        <input type="file" id="plasmid-archive-anon" name="plasmid_archive" class="form-control form-control-lg" accept=".zip,.tar,.tar.gz" required>
+                        <small class="text-muted d-block mt-2">Archive contenant vos fichiers GenBank (.gb)</small>
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg">
+                        📤 Vérifier l'archive
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ===== SECTION 3: FICHIER DE CORRESPONDANCE ===== -->
+    {% if user.is_authenticated %}
+    <div class="card mb-5 shadow">
+        <div class="card-header bg-info text-white">
+            <h4 class="mb-0">Fichier de Correspondance</h4>
+        </div>
+        <div class="card-body p-4">
+            <!-- Tabs pour créer ou utiliser un fichier -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                {% if mapping_templates %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="use-mapping-tab" data-bs-toggle="tab" data-bs-target="#use-mapping-pane" type="button" role="tab" aria-controls="use-mapping-pane" aria-selected="false">
+                        📄 Mes fichiers sauvegardés ({{ mapping_templates|length }})
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="tab-content">
+                <!-- Tab: Créer un nouveau fichier -->
+                <div class="tab-pane fade show active" id="create-mapping-pane" role="tabpanel" aria-labelledby="create-mapping-tab">
+                    <p class="text-muted mb-4">Sauvegardez un fichier de correspondance pour le réutiliser dans d'autres simulations</p>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="mapping-name" class="form-label fw-bold">Nom du fichier *</label>
+                            <input type="text" id="mapping-name" name="mapping_name" class="form-control" placeholder="Ex: Correspondance projet X" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="mapping-desc" class="form-label fw-bold">Description (optionnel)</label>
+                            <textarea id="mapping-desc" name="mapping_description" class="form-control" rows="2" placeholder="Décrivez ce fichier de correspondance..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="mapping-file" class="form-label fw-bold">Fichier (.csv ou .xlsx) *</label>
+                            <input type="file" id="mapping-file" name="mapping_file_upload" class="form-control form-control-lg" accept=".csv,.xlsx" required>
+                            <small class="text-muted d-block mt-2">Fichier CSV ou Excel contenant les correspondances</small>
+                        </div>
+                        <button type="submit" name="save_mapping" value="1" class="btn btn-info text-white btn-lg">
+                            💾 Sauvegarder ce fichier
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Tab: Utiliser un fichier existant -->
+                {% if mapping_templates %}
+                <div class="tab-pane fade" id="use-mapping-pane" role="tabpanel" aria-labelledby="use-mapping-tab">
+                    <p class="text-muted mb-4">Sélectionnez un fichier de correspondance déjà sauvegardé</p>
+                    <div class="list-group">
+                        {% for template in mapping_templates %}
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <h5 class="mb-1">{{ template.name }}</h5>
+                                    {% if template.description %}
+                                        <p class="mb-1 text-muted">{{ template.description }}</p>
+                                    {% endif %}
+                                    <small class="text-muted">
+                                        📅 {{ template.created_at|date:"d/m/Y H:i" }}
+                                    </small>
+                                </div>
+                                <form method="POST" class="ms-3">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="mapping_template_id" value="{{ template.id }}">
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ===== AFFICHAGE DES RÉSULTATS ===== -->
+    {% if file_names %}
+    <div class="card shadow">
+        <div class="card-header bg-secondary text-white">
+            <h4 class="mb-0">✅ Fichiers détectés dans l'archive</h4>
+        </div>
+        <div class="card-body">
+            <div class="list-group list-group-flush">
+                {% for name in file_names %}
+                    <div class="list-group-item">
+                        <i class="bi bi-file-earmark"></i> {{ name }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    {% if nb_plasmid %}
+    <div class="card mt-4 shadow">
+        <div class="card-header bg-warning">
+            <h4 class="mb-0">⚙️ Sélection des fichiers</h4>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">Faites correspondre vos plasmides avec les fichiers de l'archive</p>
+            {% for name in nb_plasmid %}
+                <div class="mb-3">
+                    <label for="file-select-{{ forloop.counter }}" class="form-label fw-bold">{{ name }} :</label>
+                    <select name="selected_file_{{ forloop.counter }}" id="file-select-{{ forloop.counter }}" class="form-select">
+                        <option value="">-- Choisir un fichier --</option>
+                        {% for file in file_names %}
+                            <option value="{{ file }}">{{ file }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
     <h1 class="mb-4">Soumettre un template</h1>
 
     {% if message %}
@@ -25,20 +281,175 @@
         </div>
     </div>
 
+    <!-- Section Collections et Correspondance pour utilisateurs authentifiés -->
+    {% if user.is_authenticated %}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-warning text-dark fw-bold">Mes Collections et Fichiers Sauvegardés</div>
+        <div class="card-body">
+            <!-- Tabs pour les collections et fichiers -->
+            <ul class="nav nav-tabs mb-3" role="tablist">
+                {% if plasmid_collections %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="saved-collection-tab" data-bs-toggle="tab" data-bs-target="#saved-collection-pane" type="button" role="tab" aria-controls="saved-collection-pane" aria-selected="false">Mes Collections ({{ plasmid_collections|length }})</button>
+                </li>
+                {% endif %}
+                {% if mapping_templates %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="saved-mapping-tab" data-bs-toggle="tab" data-bs-target="#saved-mapping-pane" type="button" role="tab" aria-controls="saved-mapping-pane" aria-selected="false">Mes Fichiers ({{ mapping_templates|length }})</button>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="tab-content">
+                <!-- Tab Créer une nouvelle collection -->
+                <div class="tab-pane fade show active" id="new-collection-pane" role="tabpanel" aria-labelledby="new-collection-tab">
+                    <p class="text-muted mb-3">Sauvegardez une nouvelle collection de plasmides pour la réutiliser ultérieurement</p>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="collection-name" class="form-label">Nom de la collection *</label>
+                            <input type="text" id="collection-name" name="collection_name" class="form-control" placeholder="Ex: Mes plasmides favoris" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="collection-desc" class="form-label">Description (optionnel)</label>
+                            <textarea id="collection-desc" name="collection_description" class="form-control" rows="2" placeholder="Décrivez cette collection..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="collection-file" class="form-label">Archive ZIP de plasmides (.zip) *</label>
+                            <input type="file" id="collection-file" name="collection_plasmid_archive" class="form-control" accept=".zip" required>
+                            <small class="text-muted">Sélectionnez une archive contenant vos fichiers .gb</small>
+                        </div>
+                        <button type="submit" name="save_collection" value="1" class="btn btn-success">💾 Sauvegarder la collection</button>
+                    </form>
+                </div>
+
+                <!-- Tab Collections sauvegardées -->
+                {% if plasmid_collections %}
+                <div class="tab-pane fade" id="saved-collection-pane" role="tabpanel" aria-labelledby="saved-collection-tab">
+                    <p class="text-muted mb-3">Sélectionnez une collection de plasmides déjà sauvegardée</p>
+                    <ul class="list-group">
+                        {% for collection in plasmid_collections %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ collection.name }}</strong>
+                                    {% if collection.description %}<br><small class="text-muted">{{ collection.description }}</small>{% endif %}
+                                    <br><small class="text-muted">{{ collection.plasmides.count }} plasmides • Créé le {{ collection.created_at|date:"d/m/Y" }}</small>
+                                </div>
+                                <form method="POST" style="display: inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="plasmid_collection_id" value="{{ collection.id }}">
+                                </form>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Tab Créer un fichier de correspondance -->
+                <div class="tab-pane fade" id="new-mapping-pane" role="tabpanel" aria-labelledby="new-mapping-tab">
+                    <p class="text-muted mb-3">Sauvegardez un fichier de correspondance pour le réutiliser ultérieurement</p>
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="mapping-name" class="form-label">Nom du fichier *</label>
+                            <input type="text" id="mapping-name" name="mapping_name" class="form-control" placeholder="Ex: Correspondance du projet X" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="mapping-desc" class="form-label">Description (optionnel)</label>
+                            <textarea id="mapping-desc" name="mapping_description" class="form-control" rows="2" placeholder="Décrivez ce fichier de correspondance..."></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="mapping-file" class="form-label">Fichier de correspondance (.csv ou .xlsx) *</label>
+                            <input type="file" id="mapping-file" name="mapping_file_upload" class="form-control" accept=".csv,.xlsx" required>
+                            <small class="text-muted">Sélectionnez votre fichier de correspondance</small>
+                        </div>
+                        <button type="submit" name="save_mapping" value="1" class="btn btn-success">💾 Sauvegarder le fichier</button>
+                    </form>
+                </div>
+
+                <!-- Tab Fichiers sauvegardés -->
+                {% if mapping_templates %}
+                <div class="tab-pane fade" id="saved-mapping-pane" role="tabpanel" aria-labelledby="saved-mapping-tab">
+                    <p class="text-muted mb-3">Sélectionnez un fichier de correspondance déjà sauvegardé</p>
+                    <ul class="list-group">
+                        {% for template in mapping_templates %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ template.name }}</strong>
+                                    {% if template.description %}<br><small class="text-muted">{{ template.description }}</small>{% endif %}
+                                    <br><small class="text-muted">Créé le {{ template.created_at|date:"d/m/Y H:i" }}</small>
+                                </div>
+                                <form method="POST" style="display: inline;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="mapping_template_id" value="{{ template.id }}">
+                                </form>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if data_html %}
     <!-- Formulaire pour l’archive de plasmides -->
     <div class="card mb-4 shadow-sm">
         <div class="card-header bg-secondary text-white fw-bold">2. Archive de plasmides</div>
         <div class="card-body">
-            <form method="POST" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label for="plasmid-archive" class="form-label">Uploader une archive (.zip, .tar, .tar.gz)</label>
-                    <input type="file" id="plasmid-archive" name="plasmid_archive" class="form-control" accept=".zip,.tar,.tar.gz" required>
-                    <small class="text-muted">Uploader tous vos plasmides au format GenBank (.gb)</small>
+            <!-- Tabs pour choisir entre Upload ou Collection existante -->
+            <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload-pane" type="button" role="tab" aria-controls="upload-pane" aria-selected="true">Uploader une nouvelle archive</button>
+                </li>
+                {% if plasmid_collections %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="collection-tab" data-bs-toggle="tab" data-bs-target="#collection-pane" type="button" role="tab" aria-controls="collection-pane" aria-selected="false">Utiliser une collection existante</button>
+                </li>
+                {% endif %}
+            </ul>
+
+            <div class="tab-content">
+                <!-- Tab Upload -->
+                <div class="tab-pane fade show active" id="upload-pane" role="tabpanel" aria-labelledby="upload-tab">
+                    <form method="POST" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="plasmid-archive" class="form-label">Uploader une archive (.zip, .tar, .tar.gz)</label>
+                            <input type="file" id="plasmid-archive" name="plasmid_archive" class="form-control" accept=".zip,.tar,.tar.gz">
+                            <small class="text-muted">Uploader tous vos plasmides au format GenBank (.gb)</small>
+                        </div>
+                        <button type="submit" class="btn btn-success">Vérifier l'archive</button>
+                    </form>
                 </div>
-                <button type="submit" class="btn btn-success">Vérifier l'archive</button>
-            </form>
+
+                <!-- Tab Collection existante -->
+                {% if plasmid_collections %}
+                <div class="tab-pane fade" id="collection-pane" role="tabpanel" aria-labelledby="collection-tab">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="plasmid-collection-select" class="form-label">Sélectionnez une collection</label>
+                            <select id="plasmid-collection-select" name="plasmid_collection_id" class="form-select">
+                                <option value="">-- Choisir une collection --</option>
+                                {% for collection in plasmid_collections %}
+                                    <option value="{{ collection.id }}">
+                                        {{ collection.name }} ({{ collection.plasmides.count }} plasmides)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Les plasmides de cette collection seront utilisés</small>
+                        </div>
+                        <button type="submit" class="btn btn-success">Utiliser cette collection</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -61,19 +472,4 @@
             </div>
         {% endif %}
     {% endif %}
-
-    <!-- Liste des fichiers disponibles -->
-    {% if file_names %}
-        <div class="card shadow-sm mb-4">
-            <div class="card-header fw-bold">Fichiers détectés dans l'archive</div>
-            <div class="card-body">
-                <ul class="list-group list-group-flush">
-                    {% for name in file_names %}
-                        <li class="list-group-item">{{ name }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-    {% endif %}
 </div>
-{% endblock %}

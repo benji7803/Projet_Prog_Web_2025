@@ -16,5 +16,7 @@ urlpatterns = [
     path('team/<int:team_id>/add_table/', views.add_table, name='add_table'),
     path('team/<int:team_id>/remove_table/<int:table_id>/', views.remove_table, name='remove_table'),
     path("administration", views.administration_view, name="administration"),
-    path('team/<int:team_id>/delete/', views.delete_team, name='delete_team')
+    path('team/<int:team_id>/delete/', views.delete_team, name='delete_team'),
+    path('delete_collection/<int:collection_id>/', views.delete_plasmid_collection, name='delete_collection'),
+    path('delete_mapping/<int:template_id>/', views.delete_mapping_template, name='delete_mapping'),
 ]

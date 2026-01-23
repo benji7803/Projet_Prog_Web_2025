@@ -21,4 +21,74 @@
     </a>
 </div>
 
+<hr>
+
+<h2>Mes Collections de Plasmides</h2>
+
+{% if plasmid_collections %}
+    <div class="collections-section">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom de la collection</th>
+                    <th>Description</th>
+                    <th>Plasmides</th>
+                    <th>Date de création</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for collection in plasmid_collections %}
+                <tr>
+                    <td><strong>{{ collection.name }}</strong></td>
+                    <td>{{ collection.description|truncatewords:10 }}</td>
+                    <td>{{ collection.plasmides.count }}</td>
+                    <td>{{ collection.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <a href="{{ collection.plasmid_archive.url }}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
+                        <a href="{% url 'users:delete_collection' collection.id %}" class="btn btn-sm btn-danger" title="Supprimer" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette collection ?');">🗑️</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p>Aucune collection de plasmides créée pour le moment.</p>
+{% endif %}
+
+<hr>
+
+<h2>Mes Fichiers de Correspondance</h2>
+
+{% if mapping_templates %}
+    <div class="mappings-section">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom du fichier</th>
+                    <th>Description</th>
+                    <th>Date de création</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mapping in mapping_templates %}
+                <tr>
+                    <td><strong>{{ mapping.name }}</strong></td>
+                    <td>{{ mapping.description|truncatewords:10 }}</td>
+                    <td>{{ mapping.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <a href="{{ mapping.mapping_file.url }}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
+                        <a href="{% url 'users:delete_mapping' mapping.id %}" class="btn btn-sm btn-danger" title="Supprimer" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?');">🗑️</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p>Aucun fichier de correspondance créé pour le moment.</p>
+{% endif %}
+
 {% endblock %}

@@ -36,9 +36,16 @@ def logout_view(request):
     return redirect("templates:dashboard")
 
 def user_profile(request):
+    from gestionTemplate.models import PlasmidCollection, MappingTemplate
+    
     teams = request.user.equipes_membres.all()
+    plasmid_collections = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
+    mapping_templates = MappingTemplate.objects.filter(user=request.user).order_by('-created_at')
+    
     return render(request, 'users/profile.html', {
-        'teams': teams
+        'teams': teams,
+        'plasmid_collections': plasmid_collections,
+        'mapping_templates': mapping_templates,
     })
 
 def create_team(request):
@@ -129,6 +136,26 @@ def remove_table(request, team_id, table_id):
         table.delete()
 
     return redirect('users:team_detail', team_id=team_id)
+
+
+def delete_plasmid_collection(request, collection_id):
+    """Supprime une collection de plasmides"""
+    from gestionTemplate.models import PlasmidCollection
+    
+    collection = get_object_or_404(PlasmidCollection, id=collection_id, user=request.user)
+    collection.delete()
+    messages.success(request, f"Collection '{collection.name}' supprimée avec succès.")
+    return redirect('users:profile')
+
+
+def delete_mapping_template(request, template_id):
+    """Supprime un fichier de correspondance"""
+    from gestionTemplate.models import MappingTemplate
+    
+    template = get_object_or_404(MappingTemplate, id=template_id, user=request.user)
+    template.delete()
+    messages.success(request, f"Fichier '{template.name}' supprimé avec succès.")
+    return redirect('users:profile')
 
 
 

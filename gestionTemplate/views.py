@@ -17,7 +17,6 @@ import os
 import pathlib
 import zipfile
 import tarfile
-import io
 import shutil
 
 # insillyclo
@@ -70,103 +69,6 @@ def create_template(request):
 
     return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset, "is_edit": False})
 
-def generate_structural_template(template):
-    """
-    Génère un fichier Excel VIDE de données mais avec la STRUCTURE complète.
-    """
-
-    colonne = template.columns.all()
-
-    enzyme = template.restriction_enzyme
-    name = template.name
-    out_sep = template.separator_sortie
-    p_names = [colonne[i].part_names for i in range(len(colonne))]
-    p_types = [colonne[i].part_types for i in range(len(colonne))]
-    p_opt = [colonne[i].is_optional for i in range(len(colonne))]
-    p_in_name = [colonne[i].in_output_name for i in range(len(colonne))]
-    p_seps = [colonne[i].part_separators for i in range(len(colonne))]
-
-    output = io.BytesIO()
-
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        worksheet = writer.book.add_worksheet('Sheet1')
-        writer.sheets['Sheet1'] = worksheet
-
-        # --- BLOC 1 : SETTINGS (Lignes 1 à 8) ---
-        worksheet.write(0, 0, 'Assembly settings')
-
-        # Structure clé/valeur simple
-        settings = [
-            ('Restriction enzyme', enzyme),
-            ('Name', name),
-            ('Output separator', out_sep),
-            ('', ''),  # Lignes vides pour espacer
-            ('', ''),
-            ('', ''),
-            ('', '')
-        ]
-
-        for i, (key, val) in enumerate(settings):
-            worksheet.write(i+1, 0, key)
-            worksheet.write(i+1, 1, val)
-
-        # --- BLOC 2 : COMPOSITION HEADER (Lignes 9 à 13) ---
-        start_row = 9
-
-        # Colonne A : Les étiquettes des lignes de métadonnées
-        metadata_labels = [
-            'Assembly composition',           # Ligne 9
-            '',                               # Ligne 10 (Vide en A, label en B)
-            '',                               # Ligne 11
-            '',                               # Ligne 12
-            '',                               # Ligne 13
-            'Output plasmid id ↓'             # Ligne 14 (Header data)
-        ]
-        for i, label in enumerate(metadata_labels):
-            worksheet.write(start_row + i, 0, label)
-
-        # Colonne B : Les types de métadonnées
-        param_labels = [
-            'Part name ->',                   # Ligne 9
-            'Part types ->',                  # Ligne 10
-            'Is optional part ->',            # Ligne 11
-            'Part name should be in output name ->',  # Ligne 12
-            'Part separator ->',              # Ligne 13
-            'OutputType (optional) ↓'         # Ligne 14
-        ]
-        for i, label in enumerate(param_labels):
-            worksheet.write(start_row + i, 1, label)
-
-        # Colonnes C à fin: Les valeurs définies par l'utilisateur
-        # On boucle sur chaque colonne définie dans le formulaire
-        for col_idx, p_name in enumerate(p_names):
-            # Commence à la colonne C
-            excel_col = 2 + col_idx
-
-            # Ligne 9 : Noms
-            worksheet.write(start_row, excel_col, p_name)
-
-            # Ligne 10 : Types (ex: 1, 2, 3...)
-            val_type = p_types[col_idx] if col_idx < len(p_types) else ""
-            worksheet.write(start_row + 1, excel_col, val_type)
-
-            # Ligne 11 : Optional (True/False)
-            val_opt = p_opt[col_idx] if col_idx < len(p_opt) else "False"
-            worksheet.write(start_row + 2, excel_col, val_opt)
-
-            # Ligne 12 : In Name (True/False)
-            val_in_name = p_in_name[col_idx] if col_idx < len(p_in_name) else "True"
-            worksheet.write(start_row + 3, excel_col, val_in_name)
-
-            # Ligne 13 : Separator
-            val_sep = p_seps[col_idx] if col_idx < len(p_seps) else ""
-            worksheet.write(start_row + 4, excel_col, val_sep)
-
-            # Ligne 14 : Le Header de la table de données
-            worksheet.write(start_row + 5, excel_col, p_name)
-
-    output.seek(0)
-    return output.read()
 
 # Modification
 def edit_template(request, template_id):

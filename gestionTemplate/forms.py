@@ -1,16 +1,33 @@
 from django import forms
-from .models import CampaignTemplate
+from .models import CampaignTemplate, ColumnTemplate
 
-# Formulaire pour créer un template
+
+# Création de templates
+class ColumnForm(forms.ModelForm):
+    class Meta:
+        model = ColumnTemplate
+        fields = ['part_names', 'part_types', 'is_optional', 'in_output_name', 'part_separators']
+        widgets = {
+            'part_names': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nom'}),
+            'part_types': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Type'}),
+            'part_separators': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '.'}),
+            'is_optional': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'in_output_name': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
 class CampaignTemplateForm(forms.ModelForm):
     class Meta:
         model = CampaignTemplate
-        fields = ['name', 'description'] 
-        
+        fields = ['name', 'restriction_enzyme', 'separator_sortie', 'description']
         widgets = {
-            'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'restriction_enzyme': forms.Select(attrs={'class': 'form-select'}),
+            'separator_sortie': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
+
+
 
 
 # Formulaire pour la simulation anonyme (Lui ne change pas pour l'instant)

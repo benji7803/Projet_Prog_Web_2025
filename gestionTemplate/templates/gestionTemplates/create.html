@@ -2,7 +2,11 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Création d'un Template</h2>
+    {% if is_edit %}
+      <h2>Modification d'un Template</h2>
+    {% else %}
+      <h2>Création d'un Template</h2>
+    {% endif %}
     <p class="text-muted">Définissez la structure de votre template</p>
     
     <form method="post">

@@ -21,6 +21,9 @@ import io
 import shutil
 
 # insillyclo
+from insillyclo.template_generator import make_template
+from insillyclo.data_source import DataSourceHardCodedImplementation
+from insillyclo.observer import InSillyCloCliObserver
 import insillyclo.data_source
 import insillyclo.observer
 import insillyclo.simulator
@@ -65,12 +68,24 @@ def create_template(request):
         form = CampaignTemplateForm()
         formset = ColumnFormSet(instance=CampaignTemplate(), prefix='columns')
 
-    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset})
+    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset, "is_edit": False})
 
-def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt, p_in_name, p_seps):
+def generate_structural_template(template):
     """
     Génère un fichier Excel VIDE de données mais avec la STRUCTURE complète.
     """
+
+    colonne = template.columns.all()
+
+    enzyme = template.restriction_enzyme
+    name = template.name
+    out_sep = template.separator_sortie
+    p_names = [colonne[i].part_names for i in range(len(colonne))]
+    p_types = [colonne[i].part_types for i in range(len(colonne))]
+    p_opt = [colonne[i].is_optional for i in range(len(colonne))]
+    p_in_name = [colonne[i].in_output_name for i in range(len(colonne))]
+    p_seps = [colonne[i].part_separators for i in range(len(colonne))]
+
     output = io.BytesIO()
 
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -153,12 +168,10 @@ def generate_structural_template(enzyme, name, out_sep, p_names, p_types, p_opt,
     output.seek(0)
     return output.read()
 
-
 # Modification
 def edit_template(request, template_id):
     
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
-    colonne = campaign.columns
 
     if request.method == 'POST':
         form = CampaignTemplateForm(request.POST, instance=campaign)
@@ -177,13 +190,54 @@ def edit_template(request, template_id):
         form = CampaignTemplateForm(instance=campaign)
         formset = ColumnFormSet(instance=campaign, prefix='columns')
 
-    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset})
+    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset, "is_edit": True})
 
 
 # Téléchargement
 def download_template(request, template_id):
-    campaign = get_object_or_404(CampaignTemplate, id=template_id)
-    return FileResponse(campaign.file.open(), as_attachment=True, filename=campaign.display_name)
+    template = get_object_or_404(CampaignTemplate, id=template_id)
+
+    # Récupérer les colonnes du template
+    columns = template.columns.all()
+    
+    # Construire la liste des InputPart pour insillyclo
+    input_parts = []
+    for col in columns:
+        part_types = col.part_types.split(',') if col.part_types else ['1']
+        input_part = insillyclo.models.InputPart(
+            name=col.part_names,
+            part_types=part_types,
+            is_optional=col.is_optional,
+            in_output_name=col.in_output_name,
+            separator=col.part_separators or ""
+        )
+        input_parts.append(input_part)
+    
+    # Créer un fichier temporaire
+    output_path = pathlib.Path(settings.MEDIA_ROOT) / 'temp_downloads' / f"{template.name}_{uuid.uuid4().hex[:8]}.xlsx"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Générer le template avec insillyclo
+    observer = InSillyCloCliObserver(debug=False)
+    data_source = DataSourceHardCodedImplementation()
+    
+    make_template(
+        destination_file=output_path,
+        input_parts=input_parts,
+        observer=observer,
+        data_source=data_source,
+        default_separator=template.separator_sortie,
+        enzyme=template.restriction_enzyme,
+        name=template.name,
+        default_plasmid=["pID001"]  # Tu peux paramétrer ça aussi
+    )
+    
+    # Envoyer le fichier au client
+    response = FileResponse(open(output_path, 'rb'), as_attachment=True, filename=f"{template.name}.xlsx")
+    
+    # Nettoyage après envoi (optionnel)
+    # Note: le fichier sera supprimé après, à gérer avec une tâche async si besoin
+    return response
 
 
 def submit(request):

@@ -3,10 +3,12 @@ from django.http import FileResponse
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
-from django.core.files.base import ContentFile
-from .models import CampaignTemplate, Campaign, Plasmide
-from .forms import CampaignTemplateForm, AnonymousSimulationForm
-from django.contrib.auth.decorators import login_required
+from django.forms import inlineformset_factory
+from django.core.files import File
+from django.db import transaction
+
+from .models import CampaignTemplate, Campaign, ColumnTemplate
+from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
 from .plasmid_mapping import generate_plasmid_maps
 
 import pandas as pd
@@ -15,11 +17,12 @@ import os
 import pathlib
 import zipfile
 import tarfile
-import io
-import json
 import shutil
 
 # insillyclo
+from insillyclo.template_generator import make_template
+from insillyclo.data_source import DataSourceHardCodedImplementation
+from insillyclo.observer import InSillyCloCliObserver
 import insillyclo.data_source
 import insillyclo.observer
 import insillyclo.simulator
@@ -28,158 +31,115 @@ import insillyclo.simulator
 # Dashboard : Lister TOUS les templates (public)
 def dashboard(request):
     if request.user.is_authenticated:
-        # Templates de l'utilisateur connecté
-        templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
-        anonymous_templates = None  # pas d'anonymes pour un utilisateur connecté
-        unique_id = None
-        previous_templates = Campaign.objects.filter(user=request.user).order_by('-created_at')
+        liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
     else:
-        templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
+        liste_templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
 
     context = {
-        'templates': templates,
-        'previous_templates': previous_templates if request.user.is_authenticated else None
+        'liste_templates': liste_templates,
     }
+
     return render(request, 'gestionTemplates/dashboard.html', context)
+
+ColumnFormSet = inlineformset_factory(
+    CampaignTemplate,
+    ColumnTemplate,
+    form = ColumnForm,
+    extra=2,
+    can_delete=True
+)
 
 def create_template(request):
     if request.method == 'POST':
-        name = request.POST.get('campaign_name')
-        description = request.POST.get('description')
+        form = CampaignTemplateForm(request.POST)
+        parent = form.save(commit=False) if form.is_valid() else CampaignTemplate()
+        formset = ColumnFormSet(request.POST, instance=parent, prefix='columns')
+
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                parent.user = request.user if request.user.is_authenticated else None
+                parent.save()
+                formset.instance = parent
+                formset.save()
+            return redirect('templates:dashboard')
         
-        # 1. Construction de l'objet JSON (dictionnaire)
-        structure_data = {
-            "enzyme": request.POST.get('enzyme'),
-            "output_separator": request.POST.get('output_separator', '-'),
-            "columns": []
-        }
+    else:
+        form = CampaignTemplateForm()
+        formset = ColumnFormSet(instance=CampaignTemplate(), prefix='columns')
 
-        # Récupération des listes
-        part_names = request.POST.getlist('part_names[]')
-        part_types = request.POST.getlist('part_types[]')
-        is_optional = request.POST.getlist('is_optional[]')
-        in_output_name = request.POST.getlist('in_output_name[]')
-        part_separators = request.POST.getlist('part_separators[]')
-
-        # On combine les listes pour créer des objets par colonne
-        # On utilise zip pour itérer sur tout en même temps
-        for idx, p_name in enumerate(part_names):
-            structure_data["columns"].append({
-                "name": p_name,
-                "type": part_types[idx] if idx < len(part_types) else "",
-                "is_optional": is_optional[idx] if idx < len(is_optional) else "False",
-                "in_output_name": in_output_name[idx] if idx < len(in_output_name) else "True",
-                "separator": part_separators[idx] if idx < len(part_separators) else ""
-            })
-
-        try:
-            # 2. Sauvegarde en Base de Données uniquement
-            user = request.user if request.user.is_authenticated else None
-            
-            # Génération du nom de fichier pour le futur téléchargement (pas de stockage disque)
-            filename = CampaignTemplate.generate_unique_filename(name)
-
-            new_campaign = CampaignTemplate(
-                name=name,
-                description=description,
-                user=user,
-                display_name=filename,
-                structure=structure_data
-            )
-            new_campaign.save()
-
-            return redirect('templates:dashboard') # Vérifiez votre nom d'URL (ex: 'dashboard')
-
-        except Exception as e:
-            return render(request, 'gestionTemplates/create_edit.html', {
-                'error': f"Erreur lors de la création : {e}"
-            })
-
-    return render(request, 'gestionTemplates/create_edit.html')
-
-def generate_excel_from_structure(structure_data, name):
-    """
-    Génère les bytes d'un fichier Excel à partir du JSON stocké en BDD.
-    """
-    output = io.BytesIO()
-    
-    enzyme = structure_data.get('enzyme', '')
-    out_sep = structure_data.get('output_separator', '-')
-    columns = structure_data.get('columns', [])
-
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        worksheet = writer.book.add_worksheet('Sheet1')
-        writer.sheets['Sheet1'] = worksheet
-
-        # --- BLOC 1 : SETTINGS ---
-        worksheet.write(0, 0, 'Assembly settings')
-        settings = [
-            ('Restriction enzyme', enzyme),
-            ('Name', name),
-            ('Output separator', out_sep),
-            ('', ''), ('', ''), ('', ''), ('', '')
-        ]
-        for i, (key, val) in enumerate(settings):
-            worksheet.write(i+1, 0, key)
-            worksheet.write(i+1, 1, val)
-
-        # --- BLOC 2 : HEADERS ---
-        start_row = 9
-        # (Votre code existant pour les labels A et B reste identique...)
-        metadata_labels = ['Assembly composition', '', '', '', '', 'Output plasmid id ↓']
-        for i, label in enumerate(metadata_labels):
-            worksheet.write(start_row + i, 0, label)
-
-        param_labels = ['Part name ->', 'Part types ->', 'Is optional part ->', 
-                        'Part name should be in output name ->', 'Part separator ->', 'OutputType (optional) ↓']
-        for i, label in enumerate(param_labels):
-            worksheet.write(start_row + i, 1, label)
-
-        # --- BLOC 3 : COLONNES DYNAMIQUES (Depuis le JSON) ---
-        for col_idx, col_data in enumerate(columns):
-            excel_col = 2 + col_idx
-            
-            worksheet.write(start_row, excel_col, col_data.get('name', ''))
-            worksheet.write(start_row + 1, excel_col, col_data.get('type', ''))
-            worksheet.write(start_row + 2, excel_col, col_data.get('is_optional', 'False'))
-            worksheet.write(start_row + 3, excel_col, col_data.get('in_output_name', 'True'))
-            worksheet.write(start_row + 4, excel_col, col_data.get('separator', ''))
-            # Header de la table de données
-            worksheet.write(start_row + 5, excel_col, col_data.get('name', ''))
-
-    output.seek(0)
-    return output
+    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset, "is_edit": False})
 
 
 # Modification
 def edit_template(request, template_id):
+    
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
 
     if request.method == 'POST':
-        form = CampaignTemplateForm(request.POST, request.FILES, instance=campaign)
-        if form.is_valid():
-            form.save()
-            return redirect('dashboard')
+        form = CampaignTemplateForm(request.POST, instance=campaign)
+        parent = form.save(commit=False) if form.is_valid() else CampaignTemplate()
+        formset = ColumnFormSet(request.POST, instance=campaign, prefix='columns')
+
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                parent.user = request.user if request.user.is_authenticated else None
+                parent.save()
+                formset.instance = parent
+                formset.save()
+            return redirect('templates:dashboard')
+        
     else:
         form = CampaignTemplateForm(instance=campaign)
+        formset = ColumnFormSet(instance=campaign, prefix='columns')
 
-    return render(request, 'gestionTemplates/create_edit.html', {'form': form, 'action': 'Modifier'})
+    return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset, "is_edit": True})
 
 
 # Téléchargement
 def download_template(request, template_id):
-    # 1. On récupère l'objet en BDD
-    campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    template = get_object_or_404(CampaignTemplate, id=template_id)
+
+    # Récupérer les colonnes du template
+    columns = template.columns.all()
     
-    # 2. On génère le fichier Excel en mémoire (RAM) grâce au JSON
-    excel_file = generate_excel_from_structure(campaign.structure, campaign.name)
+    # Construire la liste des InputPart pour insillyclo
+    input_parts = []
+    for col in columns:
+        part_types = col.part_types.split(',') if col.part_types else ['1']
+        input_part = insillyclo.models.InputPart(
+            name=col.part_names,
+            part_types=part_types,
+            is_optional=col.is_optional,
+            in_output_name=col.in_output_name,
+            separator=col.part_separators or ""
+        )
+        input_parts.append(input_part)
     
-    # 3. On renvoie le fichier directement au navigateur
-    return FileResponse(
-        excel_file, 
-        as_attachment=True, 
-        filename=campaign.display_name
+    # Créer un fichier temporaire
+    output_path = pathlib.Path(settings.MEDIA_ROOT) / 'temp_downloads' / f"{template.name}_{uuid.uuid4().hex[:8]}.xlsx"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Générer le template avec insillyclo
+    observer = InSillyCloCliObserver(debug=False)
+    data_source = DataSourceHardCodedImplementation()
+    
+    make_template(
+        destination_file=output_path,
+        input_parts=input_parts,
+        observer=observer,
+        data_source=data_source,
+        default_separator=template.separator_sortie,
+        enzyme=template.restriction_enzyme,
+        name=template.name,
+        default_plasmid=["pID001"]  # Tu peux paramétrer ça aussi
     )
+    
+    # Envoyer le fichier au client
+    response = FileResponse(open(output_path, 'rb'), as_attachment=True, filename=f"{template.name}.xlsx")
+    
+    # Nettoyage après envoi (optionnel)
+    # Note: le fichier sera supprimé après, à gérer avec une tâche async si besoin
+    return response
 
 
 def submit(request):
@@ -231,9 +191,7 @@ def submit(request):
     })
 
 
-from django.core.files import File
-from .models import Campaign  # Assurez-vous d'importer le modèle
-import json
+
 
 def simulate(request):
     # Choix du template HTML selon le statut

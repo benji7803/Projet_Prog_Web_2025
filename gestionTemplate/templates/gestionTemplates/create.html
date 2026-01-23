@@ -1,0 +1,136 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if is_edit %}
+      <h2>Modification d'un Template</h2>
+    {% else %}
+      <h2>Création d'un Template</h2>
+    {% endif %}
+    <p class="text-muted">Définissez la structure de votre template</p>
+    
+    <form method="post">
+      {% csrf_token %}
+
+      {{ form.non_field_errors }}
+      <!-- Champs du CampaignTemplate -->
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label>Nom</label>
+          {{ form.name }}
+          {{ form.name.errors }}
+        </div>
+        <div class="col-md-6">
+          <label>Enzyme de Restriction</label>
+          {{ form.restriction_enzyme }}
+          {{ form.restriction_enzyme.errors }}
+        </div>
+        <div class="col-md-6">
+          <label>Séparateur de sortie</label>
+          {{ form.separator_sortie }}
+          {{ form.separator_sortie.errors }}
+        </div>
+        <div class="col-md-6">
+          <label>Description</label>
+          {{ form.description }}
+          {{ form.description.errors }}
+        </div>
+      </div>
+
+      <!-- Formset des colonnes -->
+      {{ formset.non_form_errors }}
+      <div class="d-flex justify-content-end mb-2">
+        <button type="button" class="btn btn-outline-primary" id="add-row">+ Ajouter une colonne</button>
+      </div>
+
+      {{ formset.management_form }}
+
+      <table class="table table-striped align-middle mt-3 table-bordered">
+        <thead class="table-light">
+          <tr class="text-center">
+            <th style="width: 30%;">Nom</th>
+            <th style="width: 20%;">Type</th>
+            <th style="width: 10%;">Optionnel</th>
+            <th style="width: 10%;">Dans sortie</th>
+            <th style="width: 15%;">Séparateur</th>
+            <th style="width: 5%;">Suppr</th>
+          </tr>
+        </thead>
+        <tbody id="formset-body">
+          {% for f in formset %}
+          <tr class="form-row">
+            {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+            <td>{{ f.part_names }}</td>
+            <td>{{ f.part_types }}</td>
+            <td class="text-center">
+               <!-- Checkbox standard centrée -->
+               <div class="d-flex justify-content-center">
+                 {{ f.is_optional }}
+               </div>
+            </td>
+            <td class="text-center">
+               <div class="d-flex justify-content-center">
+                 {{ f.in_output_name }}
+               </div>
+            </td>
+            <td>{{ f.part_separators }}</td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-danger delete-row" title="Supprimer">✕</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <button class="btn btn-success" type="submit">Enregistrer</button>
+    </form>
+
+    <!-- Gabarit caché - enveloppé dans un div invisible -->
+    <div id="empty-form-wrapper" style="display: none !important;">
+      <table>
+        <tbody id="empty-form">
+          <tr class="form-row">
+            <td>{{ formset.empty_form.part_names }}</td>
+            <td>{{ formset.empty_form.part_types }}</td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center">
+                {{ formset.empty_form.is_optional }}
+              </div>
+            </td>
+            <td class="text-center">
+              <div class="d-flex justify-content-center">
+                {{ formset.empty_form.in_output_name }}
+              </div>
+            </td>
+            <td>{{ formset.empty_form.part_separators }}</td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-danger delete-row">✕</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+</div>
+
+<script>
+  const tbody = document.querySelector('table.table tbody');
+  const addBtn = document.getElementById('add-row');
+  const totalInput = document.querySelector('input[name="{{ formset.prefix }}-TOTAL_FORMS"]');
+
+  addBtn.addEventListener('click', () => {
+    const idx = parseInt(totalInput.value, 10);
+    const tmpl = document.querySelector('#empty-form tr').outerHTML.replaceAll('__prefix__', idx);
+    tbody.insertAdjacentHTML('beforeend', tmpl);
+    totalInput.value = idx + 1;
+  });
+
+  tbody.addEventListener('click', (e) => {
+    if (e.target.classList.contains('delete-row')) {
+      const row = e.target.closest('tr');
+      const deleteInput = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      if (deleteInput) deleteInput.checked = true;
+      row.style.display = 'none';
+    }
+  });
+</script>
+{% endblock %}

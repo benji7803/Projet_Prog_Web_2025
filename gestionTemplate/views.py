@@ -195,15 +195,12 @@ def submit(request):
 
 def simulate(request):
     # Choix du template HTML selon le statut
-    template_name = (
-        'gestionTemplates/sim.html'
-    )
+    template_name = 'gestionTemplates/sim.html'
 
     if request.method == 'POST':
         form = AnonymousSimulationForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                # === 1 SETUP SANDBOX (Commun aux deux cas pour l'exécution) ===
                 unique_id = str(uuid.uuid4())
                 BASE_MEDIA = pathlib.Path(settings.MEDIA_ROOT)
                 SANDBOX_DIR = BASE_MEDIA / 'temp_uploads' / unique_id
@@ -213,20 +210,20 @@ def simulate(request):
                 PLASMIDS_DIR.mkdir(parents=True, exist_ok=True)
                 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-                # === 2 GESTION UTILISATEUR CONNECTÉ VS ANONYME ===
                 campaign_instance = None
                 
+                # =========================================================
+                # CAS 1 : UTILISATEUR CONNECTÉ (Sauvegarde en BDD)
+                # =========================================================
                 if request.user.is_authenticated:
-                    # Création de l'objet Campaign en BDD
+                    # A. Création de l'objet Campaign
                     campaign_instance = Campaign(
                         user=request.user,
-                        name=f"Sim {unique_id[:8]}", # Ou un champ nom dans le formulaire
+                        name=f"Sim {unique_id[:8]}", 
                         status=Campaign.STATUS_RUNNING,
-                        
-                        # Sauvegarde directe des fichiers uploadés dans le modèle
                         template_file=request.FILES['template_file'],
                         mapping_file=request.FILES['mapping_file'],
-                        plasmids_archive=request.FILES['plasmids_zip'], # Attention au nom du champ form vs model
+                        plasmid_archive=request.FILES['plasmids_zip'], # Attention au nom du champ form vs model
                         
                         # Options simples
                         enzyme=form.cleaned_data.get('enzyme'),
@@ -239,22 +236,64 @@ def simulate(request):
                     if form.cleaned_data.get('concentration_file'):
                         campaign_instance.concentration_file = request.FILES['concentration_file']
                     
-                    # Gestion des options JSON (ex: primer pairs)
+                    # Options JSON
                     pairs_data = form.cleaned_data.get('primer_pairs')
                     options_dict = {}
                     if pairs_data:
                         options_dict['primer_pairs'] = pairs_data
                     campaign_instance.options = options_dict
                     
-                    campaign_instance.save() # Première sauvegarde pour écrire les fichiers sur le disque
+                    campaign_instance.save() # On sauvegarde pour obtenir un ID
                     
-                    # Récupération des chemins absolus depuis le modèle
-                    # .path donne le chemin absolu du fichier stocké par Django
+                    # B. Gestion MANUELLE de l'archive ZIP sur le disque
+                    uploaded_zip = request.FILES['plasmids_zip']
+                    zip_path_on_disk = SANDBOX_DIR / "temp_plasmids.zip"
+                    
+                    with open(zip_path_on_disk, 'wb+') as destination:
+                        for chunk in uploaded_zip.chunks():
+                            destination.write(chunk)
+
+                    # C. Extraction de l'archive
+                    with zipfile.ZipFile(zip_path_on_disk, 'r') as zip_ref:
+                        zip_ref.extractall(PLASMIDS_DIR)
+                    
+                    # D. Parsing et Création des objets Plasmide en BDD
+                    # On parcourt tous les dossiers extraits pour trouver les .gb
+                    for root, dirs, files in os.walk(PLASMIDS_DIR):
+                        
+                        # --- AJOUT : Calcul du nom du dossier ---
+                        # On regarde le chemin relatif par rapport au dossier d'extraction
+                        # Ex: si root est ".../plasmids/Niveau1/Promoteurs", rel_path sera "Niveau1/Promoteurs"
+                        rel_path = os.path.relpath(root, PLASMIDS_DIR)
+                        
+                        # Si le fichier est à la racine, rel_path vaut "." -> on met None ou ""
+                        current_dossier = rel_path if rel_path != "." else None
+                        # ----------------------------------------
+
+                        for file in files:
+                            if file.lower().endswith('.gb') or file.lower().endswith('.gbk'):
+                                full_file_path = os.path.join(root, file)
+                                try:
+                                    # --- MODIFICATION : On passe le dossier ---
+                                    new_plasmid = Plasmide.create_from_genbank(
+                                        full_file_path, 
+                                        dossier_nom=current_dossier
+                                    )
+                                    
+                                    new_plasmid.user = request.user
+                                    new_plasmid.save()
+                                    
+                                    campaign_instance.plasmids.add(new_plasmid)
+                                    
+                                except Exception as e:
+                                    print(f"Erreur import plasmide {file}: {e}")
+
+                    # E. Définition des chemins pour le simulateur
                     full_template_path = pathlib.Path(campaign_instance.template_file.path)
                     full_mapping_path = pathlib.Path(campaign_instance.mapping_file.path)
                     
                     # Extraction de l'archive stockée
-                    archive_path = pathlib.Path(campaign_instance.plasmids_archive.path)
+                    archive_path = pathlib.Path(campaign_instance.plasmid_archive.path)
                     with zipfile.ZipFile(archive_path, 'r') as zip_ref:
                         zip_ref.extractall(PLASMIDS_DIR)
                         
@@ -262,9 +301,13 @@ def simulate(request):
                     final_primers_path = pathlib.Path(campaign_instance.primers_file.path) if campaign_instance.primers_file else None
                     final_conc_path = pathlib.Path(campaign_instance.concentration_file.path) if campaign_instance.concentration_file else None
 
+                # =========================================================
+                # CAS 2 : UTILISATEUR ANONYME (Fichiers temporaires uniquement)
+                # =========================================================
                 else:
-                    # --- LOGIQUE ANCIENNE (Sandbox pur) pour anonymes ---
                     fs = FileSystemStorage(location=SANDBOX_DIR)
+                    
+                    # Sauvegarde simple sur disque sans BDD
                     f_template = request.FILES['template_file']
                     full_template_path = SANDBOX_DIR / pathlib.Path(fs.save("campaign.xlsx", f_template))
                     
@@ -276,7 +319,6 @@ def simulate(request):
                     with zipfile.ZipFile(SANDBOX_DIR / path_zip, 'r') as zip_ref:
                         zip_ref.extractall(PLASMIDS_DIR)
                     
-                    # Optionnels Anonymes (Sauvegarde temporaire)
                     final_primers_path = None
                     if form.cleaned_data['primers_file']:
                         f_primers = request.FILES['primers_file']
@@ -288,7 +330,6 @@ def simulate(request):
                         final_conc_path = SANDBOX_DIR / pathlib.Path(fs.save("concentrations.csv", f_conc))
 
                 # === 3 PRÉPARATION PARAMÈTRES COMMUNS ===
-                # Récupération des données nettoyées du formulaire
                 enzyme_data = form.cleaned_data['enzyme']
                 final_enzyme_names = [enzyme_data] if enzyme_data else None
                 final_default_conc = form.cleaned_data['default_concentration'] or 200.0
@@ -308,7 +349,7 @@ def simulate(request):
                     settings=None,
                     input_template_filled=full_template_path,
                     input_parts_files=[full_mapping_path],
-                    gb_plasmids=PLASMIDS_DIR.glob('**/*.gb'),
+                    gb_plasmids=PLASMIDS_DIR.glob('**/*.gb'), # Cherche récursivement les .gb
                     output_dir=OUTPUT_DIR,
                     data_source=insillyclo.data_source.DataSourceHardCodedImplementation(),
                     primers_file=final_primers_path,
@@ -326,33 +367,31 @@ def simulate(request):
                 final_zip_path = SANDBOX_DIR / final_zip_name
                 make_zipfile(str(OUTPUT_DIR), str(final_zip_path))
 
-                # === BLOC DE SAUVEGARDE ET NETTOYAGE ===
+                # === RETOUR ===
                 if campaign_instance:
-                    #Sauvegarde définitive dans la BDD (et dossier media/)
+                    # Sauvegarde du résultat final en BDD
                     with open(final_zip_path, 'rb') as f:
                         campaign_instance.result_file.save(final_zip_name, File(f))
                         campaign_instance.status = Campaign.STATUS_DONE
                         campaign_instance.save()
                     
-                    #NETTOYAGE
-                    # Puisque le fichier est en sécurité dans /media/, on supprime le dossier de travail temporaire
+                    # Nettoyage dossier temporaire
                     try:
-                        shutil.rmtree(SANDBOX_DIR) # Supprime le dossier uuid et tout son contenu
+                        shutil.rmtree(SANDBOX_DIR)
                     except OSError as e:
-                        print(f"Erreur lors du nettoyage du dossier temporaire : {e}")
+                        print(f"Erreur nettoyage : {e}")
 
                     # Pour l'utilisateur connecté, on redirige souvent vers le dashboard ou on renvoie le fichier stocké
                     # Ici, pour rester simple, on renvoie le fichier qui vient d'être sauvegardé
-                    return FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
-
+                    response = FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
+                    response["X-Suggested-Filename"] = final_zip_name
+                    return response
                 else:
-                    # CAS ANONYME : On ne supprime PAS le dossier maintenant, 
-                    # car FileResponse a besoin du fichier sur le disque pour l'envoyer au navigateur.
+                    # Anonyme : On laisse le fichier temporaire pour le téléchargement
                     return FileResponse(open(final_zip_path, 'rb'), as_attachment=True, filename=final_zip_name)
 
-
             except Exception as e:
-                # Gestion des erreurs en BDD
+                # Gestion d'erreur (Statut Failed en BDD)
                 if campaign_instance:
                     campaign_instance.status = Campaign.STATUS_FAILED
                     campaign_instance.error_message = str(e)
@@ -366,7 +405,6 @@ def simulate(request):
     else:
         form = AnonymousSimulationForm()
     
-    # Contexte pour afficher l'historique au chargement de la page (GET)
     context = {'form': form}
     if request.user.is_authenticated:
         context['previous_templates'] = Campaign.objects.filter(user=request.user).order_by('-created_at')

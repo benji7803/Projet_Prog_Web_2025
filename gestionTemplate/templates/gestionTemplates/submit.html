@@ -1,59 +1,79 @@
 {% extends 'layout.html' %}
 
-{% block title %}
-    Submit
-{% endblock %}
+{% block title %}Soumettre un template{% endblock %}
 
 {% block content %}
-<h1>Submit a template !</h1>
+<div class="container mt-5">
+    <h1 class="mb-4">Soumettre un template</h1>
 
-{% if message %}
-    <p style="font-weight: bold;">{{ message }}</p>
-{% endif %}
-
-<form method="POST" enctype="multipart/form-data">
-    {% csrf_token %}
-    
-    <label for="file-upload">Upload de fichier :</label>
-    <input type="file" id="file-upload" name="uploaded_file" accept=".xlsx">
-    
-    <button type="submit">Vérifier le fichier</button>
-</form>
-
-<hr>
-
-{% if data_html %}
-
-    <form method="POST" enctype="multipart/form-data">
-    {% csrf_token %}
-        <label for="file-upload">Archive de plasmides :</label>
-        <h6>Uploader une archive de fichier .gb de vos plasmides</h6>
-        <input type="file" id="file-upload" name="plasmid_archive" accept=".zip,.tar,.tar.gz">
-        <button type="submit">Vérifier l'archive</button>
-    </form>
-
-    {% if nb_plasmid %}
-        <h3>Inputs :</h3>
-        {% for name in nb_plasmid %}
-            <div>
-                <label for="{{ name }}">{{ name }}:</label> 
-                <select name="selected_file" id="file-select">
-                    <option value="">-- Choisir un fichier de l'archive --</option>
-                        {% for file in file_names %}
-                            <option value="{{ file }}">{{ file }}</option>
-                        {% endfor %}
-                </select>
-            </div>
-        {% endfor %}
+    {% if message %}
+        <div class="alert alert-info">{{ message }}</div>
     {% endif %}
-{% endif %}
 
+    <!-- Formulaire pour le fichier principal -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white fw-bold">1. Upload du fichier principal</div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="file-upload" class="form-label">Fichier Excel (.xlsx)</label>
+                    <input type="file" id="file-upload" name="uploaded_file" class="form-control" accept=".xlsx" required>
+                </div>
+                <button type="submit" class="btn btn-success">Vérifier le fichier</button>
+            </form>
+        </div>
+    </div>
+
+    {% if data_html %}
+    <!-- Formulaire pour l’archive de plasmides -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-secondary text-white fw-bold">2. Archive de plasmides</div>
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="plasmid-archive" class="form-label">Uploader une archive (.zip, .tar, .tar.gz)</label>
+                    <input type="file" id="plasmid-archive" name="plasmid_archive" class="form-control" accept=".zip,.tar,.tar.gz" required>
+                    <small class="text-muted">Uploader tous vos plasmides au format GenBank (.gb)</small>
+                </div>
+                <button type="submit" class="btn btn-success">Vérifier l'archive</button>
+            </form>
+        </div>
+    </div>
+
+        {% if nb_plasmid %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-bold">3. Sélection des fichiers</div>
+                <div class="card-body">
+                    {% for name in nb_plasmid %}
+                        <div class="mb-3">
+                            <label for="file-select-{{ forloop.counter }}" class="form-label">{{ name }} :</label>
+                            <select name="selected_file_{{ forloop.counter }}" id="file-select-{{ forloop.counter }}" class="form-select">
+                                <option value="">-- Choisir un fichier de l'archive --</option>
+                                {% for file in file_names %}
+                                    <option value="{{ file }}">{{ file }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+
+    <!-- Liste des fichiers disponibles -->
+    {% if file_names %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-bold">Fichiers détectés dans l'archive</div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for name in file_names %}
+                        <li class="list-group-item">{{ name }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+</div>
 {% endblock %}
-
-{% if file_names %}
-    <ul>
-    {% for name in file_names %}
-        <li>{{ name }}</li>
-    {% endfor %}
-    </ul>
-{% endif %}

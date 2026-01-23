@@ -1,47 +1,89 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<h2>Équipe : {{ team.name }}</h2>
 
-<p><strong>Chef d'équipe :</strong> {{ team.leader.email }}</p>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="margin: 0;">Équipe : {{ team.name }}</h2>
+
+    {% if request.user == team.leader %}
+        <form action="{% url 'users:delete_team' team.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible.')">
+            {% csrf_token %}
+            <button type="submit" class="btn-outline-danger" style="padding: 5px 10px; font-size: 0.8rem; background-color: #8B0000;">
+                Supprimer l'équipe
+            </button>
+        </form>
+    {% endif %}
+</div>
+
+<section class="team-section">
+    <h3>Membres (par ancienneté)</h3>
+    <div class="members-list">
+        {% for lien in lien_membres %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
+                <span>
+                    {{ lien.user.get_full_name|default:lien.user.email }} {% if lien.user == team.leader%} (Chef d'équipe) {% endif %}
+                    <small style="color: gray;">(Rejoint le : {{ lien.date_rejoint|date:"d/m/Y" }})</small>
+                </span>
+                
+                {% if request.user == team.leader and lien.user != team.leader %}
+                <div style="display: flex; gap: 8px;">
+                    <form action="{% url 'users:promote_member' team.id lien.user.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-icon" title="Nommer Chef">👑</button>
+                    </form>
+                    <form action="{% url 'users:remove_member' team.id lien.user.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-icon btn-danger" title="Retirer de l'équipe" onclick="return confirm('Êtes-vous sûr de vouloir retirer {{ lien.user.get_full_name }} de l équipe ?');">❌</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+</section>
 
 {% if request.user == team.leader %}
-<hr>
-<h3>Inviter un membre</h3>
-<form action="{% url 'users:invite_member' team.id %}" method="post">
-    {% csrf_token %}
-    <input type="email" name="email" placeholder="exemple@email.com" required>
-    <button type="submit" class="btn">➕ Ajouter à l'équipe</button>
-</form>
-{% endif %}
-
-<h3>Membres (par ancienneté)</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Utilisateur | </th>
-            <th>Date d'arrivée | </th>
-            <th>Rôle</th>
-        </tr>
-    </thead>
-    <tbody>
-    {% for lien in lien_membres %}
-        <li>{{ lien.user.email }} (Rejoint le : {{ lien.date_rejoint|date:"d/m/Y" }})</li>
-    {% empty %}
-        <li>Aucun membre (ceci ne devrait pas arriver si le chef est membre).</li>
-    {% endfor %}
-    </tbody>
-</table>
-<hr>
-
-{% if request.user == team.leader %}
-    <form action="{% url 'users:delete_team' team.id %}" method="post" style="display:inline;">
+<div style="max-width: 450px; margin-top: 20px;">
+    <h3 style="font-size: 1rem; margin-bottom: 10px;">Inviter un nouveau membre</h3>
+    <form action="{% url 'users:invite_member' team.id %}" method="post" style="display: flex;">
         {% csrf_token %}
-        <button type="submit" class="btn-delete">
-            Supprimer l'équipe
+        <input type="email" name="email" placeholder="adresse@email.com" required 
+               style="height: 38px; flex: 1; padding: 0 12px; border: 1px solid #ccc; border-right: none; border-radius: 4px 0 0 4px; box-sizing: border-box; outline: none; font-size: 0.95rem;">
+        
+        <button type="submit" class="btn" 
+                style="height: 38px; padding: 0 20px; border: none; border-radius: 0 4px 4px 0; color: white; cursor: pointer; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: center; box-sizing: border-box; transition: background 0.2s;">
+            Ajouter
         </button>
     </form>
+</div>
 {% endif %}
 
-<p><a href="{% url 'users:profile' %}">⬅ Retour à mon profil</a></p>
+<section class="files-section">
+    <h3>Tableau de correspondances</h3>
+    {% if request.user == team.leader %}
+        <form action="{% url 'users:add_table' team.id %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" id="file-upload" name="uploaded_table" accept=".xlsx">
+            <button type="submit">Ajouter le fichier</button>
+        </form>
+    {% endif %}
+    {% for table in list_table %}
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
+                <span>
+                    {{ table.name }}
+                </span>
+                {% if request.user == team.leader %}
+                <div style="display: flex; gap: 8px;">
+                    <form action="{% url 'users:remove_table' team.id table.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-icon" title="Supprimmer la table" style="background-color: #8B0000;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette table ?');">Supprimer</button>
+                    </form>
+                {% endif %}
+    {% endfor %}
+</section>
+
+<p style="margin-top: 40px;">
+    <a href="{% url 'users:profile' %}" style="color: #666; text-decoration: none; font-size: 0.9rem;">← Retour au profil</a>
+</p>
+
 {% endblock %}

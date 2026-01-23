@@ -1,86 +1,84 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<h2 class="mb-4">Mes Templates de Campagne</h2>
+<div class="templates-page">
 
-{% if user.is_authenticated %}
-    <a href="{% url 'templates:create_template' %}" class="btn btn-success mb-3">+ Nouveau Template</a>
-{% else %}
-    <a href="{% url 'templates:create_template' %}" class="btn btn-success mb-3">+ Nouveau Template Anonyme</a>
-{% endif %}
+    <header class="page-header">
+        <h2>Mes Templates de Campagne</h2>
+        {% if user.is_authenticated %}
+            <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template</a>
+        {% else %}
+            <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template Anonyme</a>
+        {% endif %}
+    </header>
 
-<div class="table-responsive">
-    <table class="table table-bordered align-middle">
-        <thead class="table-light text-center">
-            <tr>
-                <th>Nom du Template |</th> <th>Fichier actuel |</th> <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for templates in liste_templates %}
+    <section class="templates-table">
+        <table>
+            <thead>
                 <tr>
-                    <td class="text-truncate" style="max-width: 250px;" title="{{ t.name }}"><strong>{{ templates.name }}</strong></td>
-                    <td class="text-truncate" style="max-width: 350px;" title="{{ t.display_name }}">{{ templates.display_name }}</td>
-                    <td class="text-center">
-                        <div class="d-flex justify-content-center flex-wrap gap-1">
-                            <a href="{% url 'templates:download_template' templates.id %}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
-                            <a href="{% url 'templates:edit_template' templates.id %}" class="btn btn-sm btn-warning" title="Modifier">✏️</a>
-                            <a href="{% url 'templates:delete_template' templates.id %}" 
-                                class="btn btn-sm btn-danger"
-                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
-                                title="Supprimer">🗑️</a>
+                    <th>Nom du Template</th>
+                    <th>Fichier actuel</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in templates %}
+                <tr>
+                    <td title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
+                    <td title="{{ t.display_name }}">{{ t.display_name }}</td>
+                    <td>
+                        <div class="table-actions">
+                            <a href="{% url 'templates:download_template' t.id %}" class="btn btn-icon btn-info" title="Télécharger">📥</a>
+                            <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-icon btn-warning" title="Modifier">✏️</a>
+                            <a href="{% url 'templates:simulate' %}" class="btn btn-icon btn-primary" title="Simuler">🚀</a>
+                            <a href="{% url 'templates:delete_template' t.id %}" 
+                               class="btn btn-icon btn-danger"
+                               onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
+                               title="Supprimer">🗑️</a>
                         </div>
                     </td>
                 </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="3" class="text-center">Aucun template créé.</td>
-                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="empty-row">Aucun template créé.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="simulations-section">
+        <h3>Mes anciennes simulations</h3>
+        {% if previous_templates %}
+        <ul class="simulation-list">
+            {% for campaign in previous_templates %}
+            <li>
+                <div class="sim-header">
+                    <div>
+                        <strong>{{ campaign.name }}</strong>
+                        <span class="status-badge {{ campaign.status }}">
+                            {{ campaign.get_status_display }}
+                        </span><br>
+                        <small>{{ campaign.created_at|date:"d/m/Y H:i" }}</small>
+                    </div>
+                    <div class="sim-actions">
+                        <a href="{{ campaign.template_file.url }}" class="btn btn-outline">Template</a>
+
+                        {% if campaign.result_file %}
+                            <a href="{{ campaign.result_file.url }}" class="btn btn-primary">📥 Résultat</a>
+                            <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-secondary">Visualiser</a>
+                        {% endif %}
+
+                        {% if campaign.status == 'failed' %}
+                            <button class="btn btn-outline btn-danger" title="{{ campaign.error_message }}">?</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
             {% endfor %}
-        </tbody>
-    </table>
-</div>
-<!-- === Liste des anciennes simulations de l'utilisateur === -->
-<div class="mb-4">
-    <h4 class="text-secondary border-bottom pb-2">Mes anciennes simulations</h4>
-    <ul class="list-group">
-        {% for campaign in previous_templates %}
-        <li class="list-group-item">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{ campaign.name }}</strong> 
-                    <span class="badge 
-                        {% if campaign.status == 'done' %}bg-success
-                        {% elif campaign.status == 'failed' %}bg-danger
-                        {% else %}bg-warning{% endif %}">
-                        {{ campaign.get_status_display }}
-                    </span>
-                    <br>
-                    <small class="text-muted">{{ campaign.created_at|date:"d/m/Y H:i" }}</small>
-                </div>
-
-                <div class="btn-group">
-                    <a href="{{ campaign.template_file.url }}" class="btn btn-sm btn-outline-secondary" title="Template">Template</a>
-
-                    {% if campaign.result_file %}
-                        <a href="{{ campaign.result_file.url }}" class="btn btn-sm btn-primary">
-                            📥 Résultat
-                        </a>
-                        <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-sm btn-primary">
-                            Visualiser les plasmides générés
-                        </a>
-                    {% endif %}
-
-                    {% if campaign.status == 'failed' %}
-                        <button type="button" class="btn btn-sm btn-outline-danger" title="{{ campaign.error_message }}">
-                            ?
-                        </button>
-                    {% endif %}
-                </div>
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
+        </ul>
+        {% else %}
+        <p class="empty-row">Aucune simulation précédente.</p>
+        {% endif %}
+    </section>
 
 </div>
 {% endblock %}

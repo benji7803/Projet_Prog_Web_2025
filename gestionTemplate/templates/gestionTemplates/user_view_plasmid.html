@@ -1,50 +1,47 @@
 {% extends 'layout.html' %}
 
-{% block title %}
-    Visualiser les Plasmides
-{% endblock %}
+{% block title %}Visualiser les Plasmides{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1>Plasmides de la simulation {{ campaign.name }}: </h1>
-    <label>Date de création: {{ campaign.created_at|date:"d/m/Y H:i" }}</label>
-    
+<div class="container mt-5">
+    <h1 class="mb-2">Plasmides de la simulation "{{ campaign.name }}"</h1>
+    <p class="text-muted mb-4">Date de création : {{ campaign.created_at|date:"d/m/Y H:i" }}</p>
+
     {% if error %}
-        <div class="alert alert-danger mt-3">{{ error }}</div>
+        <div class="alert alert-danger">{{ error }}</div>
     {% endif %}
     {% if message %}
-        <div class="alert alert-success mt-3">{{ message }}</div>
+        <div class="alert alert-success">{{ message }}</div>
     {% endif %}
 
     {% if plasmid_maps %}
-        <h2>Cartes des plasmides :</h2>
+        <h2 class="mb-3">Cartes des plasmides :</h2>
         {% for name, linear, circular in plasmid_maps %}
-            <div class="card mb-4 p-3 shadow-sm">
-                <hr>
-                <h2 class="text-center"> {{ name }}</h2>
-                <div class="row">
-                    <div class="col-md-6">
+            <div class="card mb-4 shadow-sm p-3">
+                <h3 class="text-center mb-4">{{ name }}</h3>
+                <div class="row align-items-center">
+                    <!-- Carte linéaire -->
+                    <div class="col-md-6 text-center mb-3">
                         <h5>Carte linéaire</h5>
-                        <img src="{{ linear }}" class="img-fluid" alt="Carte linéaire {{ name }}" style="max-width:50%; height:auto;">
+                        <img src="{{ linear }}" class="img-fluid border rounded" alt="Carte linéaire {{ name }}" style="max-width:100%; height:auto;">
+                        <div class="mt-2">
+                            <a href="{{ linear }}" download class="btn btn-sm btn-outline-primary">Télécharger {{ name }}_lineaire.png</a>
+                        </div>
                     </div>
-                    <div class="mt-2">
-                    <a href="{{ linear }}" download class="btn btn-sm btn-outline-primary"> {{ name }}_lineaire.png</a>
-                    </div>
-                    <div class="col-md-6">
-                        <hr>
+
+                    <!-- Carte circulaire -->
+                    <div class="col-md-6 text-center mb-3">
                         <h5>Carte circulaire</h5>
-                        <img src="{{ circular }}" class="img-fluid" alt="Carte circulaire {{ name }}" style="max-width:50%; height:auto;">
-                    </div>
-                    <div class="mt-2">
-                    <a href="{{ circular }}" download class="btn btn-sm btn-outline-primary"> {{ name }}_circulaire.png</a>
+                        <img src="{{ circular }}" class="img-fluid border rounded" alt="Carte circulaire {{ name }}" style="max-width:50%; height:auto;">
+                        <div class="mt-2">
+                            <a href="{{ circular }}" download class="btn btn-sm btn-outline-primary">Télécharger {{ name }}_circulaire.png</a>
+                        </div>
                     </div>
                 </div>
             </div>
         {% endfor %}
     {% else %}
-        <p>Aucun plasmide à afficher.</p>
+        <div class="alert alert-info">Aucun plasmide à afficher.</div>
     {% endif %}
-
-
 </div>
 {% endblock %}

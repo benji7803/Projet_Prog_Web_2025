@@ -32,11 +32,14 @@ import insillyclo.simulator
 def dashboard(request):
     if request.user.is_authenticated:
         liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+        previous_sim = Campaign.objects.filter(user=request.user).order_by('-created_at')
     else:
         liste_templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
+        previous_sim = None
 
     context = {
         'liste_templates': liste_templates,
+        'previous_sim': previous_sim,
     }
 
     return render(request, 'gestionTemplates/dashboard.html', context)
@@ -400,14 +403,14 @@ def simulate(request):
                 return render(request, template_name, {
                     'form': form,
                     'error': f"Erreur de simulation : {str(e)}",
-                    'previous_templates': Campaign.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None
+                    'previous_sim': Campaign.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None
                 })
     else:
         form = AnonymousSimulationForm()
     
     context = {'form': form}
     if request.user.is_authenticated:
-        context['previous_templates'] = Campaign.objects.filter(user=request.user).order_by('-created_at')
+        context['previous_sim'] = Campaign.objects.filter(user=request.user).order_by('-created_at')
 
     return render(request, template_name, context)
 

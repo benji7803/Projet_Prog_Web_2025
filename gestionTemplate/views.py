@@ -11,6 +11,8 @@ from .models import CampaignTemplate, Campaign, ColumnTemplate
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
 from .plasmid_mapping import generate_plasmid_maps
 
+from io import BytesIO
+from django.core.files.uploadedfile import InMemoryUploadedFile
 import pandas as pd
 import uuid
 import os
@@ -18,6 +20,7 @@ import pathlib
 import zipfile
 import tarfile
 import shutil
+import csv
 
 # insillyclo
 from insillyclo.template_generator import make_template
@@ -199,7 +202,7 @@ def submit(request):
 def simulate(request):
     # Choix du template HTML selon le statut
     template_name = 'gestionTemplates/sim.html'
-
+    
     if request.method == 'POST':
         form = AnonymousSimulationForm(request.POST, request.FILES)
         if form.is_valid():
@@ -222,7 +225,7 @@ def simulate(request):
                     # A. Création de l'objet Campaign
                     campaign_instance = Campaign(
                         user=request.user,
-                        name=f"Sim {unique_id[:8]}", 
+                        name=f"sim_{unique_id[:8]}", 
                         status=Campaign.STATUS_RUNNING,
                         template_file=request.FILES['template_file'],
                         mapping_file=request.FILES['mapping_file'],
@@ -403,17 +406,17 @@ def simulate(request):
                 return render(request, template_name, {
                     'form': form,
                     'error': f"Erreur de simulation : {str(e)}",
-                    'previous_sim': Campaign.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None
+                    'previous_templates': Campaign.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None
                 })
     else:
         form = AnonymousSimulationForm()
-    
+
     context = {'form': form}
+
     if request.user.is_authenticated:
-        context['previous_sim'] = Campaign.objects.filter(user=request.user).order_by('-created_at')
+        context['previous_templates'] = Campaign.objects.filter(user=request.user).order_by('-created_at')
 
     return render(request, template_name, context)
-
 
 # Fonction utilitaire création zipfile
 def make_zipfile(source_dir, output_filename):
@@ -427,6 +430,11 @@ def make_zipfile(source_dir, output_filename):
 
 def delete_template(request, template_id):
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    campaign.delete()
+    return redirect('templates:dashboard')
+
+def delete_campaign(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
     campaign.delete()
     return redirect('templates:dashboard')
 
@@ -484,6 +492,15 @@ def user_view_plasmid(request, campaign_id):
                     f for f in zip_ref.namelist()
                     if f.lower().endswith('.gb')
                 ]
+                #Tous les fichiers dans le zip, sauf les .gb
+                #Enlever le /output/ du début
+                files_in_zip = [
+                    f for f in zip_ref.namelist()
+                    if not f.lower().endswith('.gb')
+                ]
+                for i in range(len(files_in_zip)):
+                    if files_in_zip[i].startswith('output/'):
+                        files_in_zip[i] = files_in_zip[i][7:]
 
                 for f in gb_files:
                     # extraire le fichier dans un dossier temporaire
@@ -502,5 +519,7 @@ def user_view_plasmid(request, campaign_id):
 
     return render(request, 'gestionTemplates/user_view_plasmid.html', {
         'campaign': campaign,
-        'plasmid_maps': plasmid_maps
+        'plasmid_maps': plasmid_maps,
+        'files': files_in_zip
     })
+

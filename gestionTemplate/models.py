@@ -53,6 +53,34 @@ class CorrespondanceTable(models.Model):
     description = models.TextField("Description", blank=True)
     mapping = models.JSONField("Mapping", default=dict)
     team = models.ForeignKey('users.Equipe', on_delete=models.CASCADE, null=True, blank=True)
+    mapping_template = models.OneToOneField('MappingTemplate', on_delete=models.SET_NULL, null=True, blank=True, related_name='correspondance_table', help_text="Fichier original associé à cette table")
+
+
+class PlasmidCollection(models.Model):
+    """Stocke une collection réutilisable de plasmides pour un utilisateur"""
+    name = models.CharField("Nom de la collection", max_length=200)
+    description = models.TextField("Description", blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='plasmid_collections')
+    plasmid_archive = models.FileField(upload_to='user_plasmid_collections/', help_text="Archive ZIP contenant les fichiers .gb originaux")
+    plasmides = models.ManyToManyField('Plasmide', blank=True, related_name='collections', help_text="Plasmides parsés depuis cette collection")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"
+
+
+class MappingTemplate(models.Model):
+    """Stocke un fichier de correspondance réutilisable pour un utilisateur"""
+    name = models.CharField("Nom du fichier de correspondance", max_length=200)
+    description = models.TextField("Description", blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='mapping_templates')
+    mapping_file = models.FileField(upload_to='user_mapping_templates/', help_text="Fichier CSV/Excel original de correspondance")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"
 
 
 class Plasmide(models.Model):
@@ -195,6 +223,10 @@ class Campaign(models.Model):
     mapping_file = models.FileField(upload_to='simulations/mappings/', null=True)
     plasmid_archive = models.FileField(upload_to='simulations/plasmid_archive/', null=True)
     plasmids = models.ManyToManyField(Plasmide, blank=True)
+
+    # Références aux collections réutilisables (optionnel - utilisé si l'utilisateur choisit une collection existante)
+    plasmid_collection = models.ForeignKey(PlasmidCollection, on_delete=models.SET_NULL, null=True, blank=True, related_name='campaigns')
+    mapping_template = models.ForeignKey(MappingTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='campaigns')
 
     # optionnels
     primers_file = models.FileField(upload_to='simulations/primers/', null=True, blank=True)

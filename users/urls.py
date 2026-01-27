@@ -18,11 +18,13 @@ urlpatterns = [
     path('team/<int:team_id>/add_table/', views.add_table, name='add_table'),
     path('team/<int:team_id>/remove_table/<int:table_id>/', views.remove_table, name='remove_table'),
     path('team/<int:team_id>/download_table/<int:table_id>/', views.download_table, name='download_table'),
+    path('team/<int:team_id>/validate_table/<int:table_id>/', views.validate_table, name='validate_table'),
 
     path('team/<int:team_id>/add_seqcol/', views.add_seqcol, name='add_seqcol'),
     path('team/<int:team_id>/remove_seqcol/<int:seqcol_id>/', views.remove_seqcol, name='remove_seqcol'),
     path('team/<int:team_id>/download_seqcol/<int:seqcol_id>/', views.download_seqcol, name='download_seqcol'),
-    
+    path('team/<int:team_id>/validate_seqcol/<int:seqcol_id>/', views.validate_seqcol, name='validate_seqcol'),
+
     path("administration", views.administration_view, name="administration"),
     path('team/<int:team_id>/delete/', views.delete_team, name='delete_team'),
     path('delete_collection/<int:collection_id>/', views.delete_plasmid_collection, name='delete_collection'),

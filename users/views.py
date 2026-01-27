@@ -123,11 +123,15 @@ def add_table(request, team_id):
         uploaded_table = request.FILES.get('uploaded_table')
         
         if uploaded_table:
+            is_leader = (request.user == team.leader)
             Tablecor.objects.create(
                 name = uploaded_table.name,
                 equipe = team,
-                fichier = uploaded_table
+                fichier = uploaded_table,
+                uploaded_by=request.user,
+                is_validated=is_leader
             )
+            messages.success(request, "Tableau suggéré à la cheffe d'équipe.")
             return redirect('users:team_detail', team_id=team.id)
     return redirect('users:team_detail', team_id=team.id)
 
@@ -153,16 +157,32 @@ def download_table(request,team_id, table_id):
     except (FileNotFoundError, ValueError):
         raise Http404("Le fichier est introuvable sur le serveur.")
 
+def validate_table(request, team_id, table_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    if request.user != team.leader:
+        messages.error(request, "Seul le chef peut valider les fichiers.")
+        return redirect('users:team_detail', team_id=team_id)
+        
+    table = get_object_or_404(Tablecor, id=table_id)
+    table.is_validated = True
+    table.save()
+    messages.success(request, f"Le tableau {table.name} est désormais officiel.")
+    return redirect('users:team_detail', team_id=team_id)
+
 def add_seqcol(request, team_id):
     team = get_object_or_404(Equipe, id=team_id)
     if request.method == "POST":
         uploaded_seqcol = request.FILES.get('uploaded_seqcol')
         if uploaded_seqcol:
+            is_leader = (request.user == team.leader)
             Seqcollection.objects.create(
                 name = uploaded_seqcol.name,
                 equipe = team,
-                fichier = uploaded_seqcol
+                fichier = uploaded_seqcol,
+                uploaded_by=request.user,
+                is_validated=is_leader
             )
+            messages.success(request, "Collection suggérée à la cheffe d'équipe.")
             return redirect('users:team_detail', team_id=team.id)
     return redirect('users:team_detail', team_id=team.id)
 
@@ -187,6 +207,17 @@ def download_seqcol(request,team_id, seqcol_id):
         return response
     except (FileNotFoundError, ValueError):
         raise Http404("Le fichier est introuvable sur le serveur.")
+    
+def validate_seqcol(request, team_id, seqcol_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    if request.user != team.leader:
+        return redirect('users:team_detail', team_id=team_id)
+        
+    seqcol = get_object_or_404(Seqcollection, id=seqcol_id)
+    seqcol.is_validated = True
+    seqcol.save()
+    
+    return redirect('users:team_detail', team_id=team_id)
 
 
 def delete_plasmid_collection(request, collection_id):

@@ -68,9 +68,13 @@ class Tablecor(models.Model):
     name = models.CharField('table name', max_length=150)
     equipe = models.ForeignKey(Equipe, on_delete=models.CASCADE, related_name='tablecor')
     fichier = models.FileField(upload_to='equipes/docs/', validators=[FileExtensionValidator(allowed_extensions=['xlsx'])])
+    uploaded_by = models.ForeignKey(UserModel, on_delete=models.SET_NULL, null=True)
+    is_validated = models.BooleanField(default=False)
 
 class Seqcollection(models.Model):
     name = models.CharField('seq name', max_length=150)
     equipe = models.ForeignKey(Equipe, on_delete=models.CASCADE, related_name='seqcol')
     fichier = models.FileField(upload_to='equipes/docs/', validators=[FileExtensionValidator(allowed_extensions=['zip'])])
+    uploaded_by = models.ForeignKey(UserModel, on_delete=models.SET_NULL, null=True)
+    is_validated = models.BooleanField(default=False)
 

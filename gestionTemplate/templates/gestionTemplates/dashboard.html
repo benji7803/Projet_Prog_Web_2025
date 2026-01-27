@@ -35,7 +35,7 @@
         <button class="close-btn" onclick="this.closest('dialog').close()">Fermer</button>
     </dialog>
 
-    <!-- Table des templates utilisateurs -->
+    <!-- Table des templates -->
     <section class="templates-table">
         <table>
             <thead>
@@ -71,6 +71,29 @@
             </tbody>
         </table>
     </section>
+
+    <!-- Table des Tables de correspondances -->
+    <section class="templates-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom de la table</th>
+                    <th>Fichier actuel</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in liste_tables %}
+                <tr>
+                    <td title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="empty-row">Aucune table créée.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
 
     <section class="simulations-section">
         <h3>Mes anciennes simulations</h3>

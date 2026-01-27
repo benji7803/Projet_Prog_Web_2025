@@ -689,6 +689,8 @@ def import_public_templates(request, template_id):
 
     original = get_object_or_404(CampaignTemplate, id=template_id)
 
+    old_columns = list(original.columns.all())
+
     original.id = None
     original.pk = None
     original.isPublic = False
@@ -697,6 +699,12 @@ def import_public_templates(request, template_id):
     original.name = "Copie de " + original.name
 
     original.save()
+
+    for col in old_columns:
+        col.pk = None
+        col.id = None
+        col.template = original  # On lie la copie de la colonne au nouveau template
+        col.save()
 
     liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
 

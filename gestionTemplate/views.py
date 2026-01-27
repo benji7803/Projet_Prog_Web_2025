@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import FileResponse
+from django.http import FileResponse, JsonResponse
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.forms import inlineformset_factory
-from django.core.files import File
 from django.db import transaction
+from django.contrib.auth.decorators import login_required
+import json
 
 from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
@@ -675,3 +676,56 @@ def plasmid_search(request):
         context['campaigns_with_plasmids'] = []
 
     return render(request, 'gestionTemplates/plasmid_search.html', context)
+def search_public_templates(request):
+    query = request.GET.get('q', '')
+    templates = CampaignTemplate.objects.filter(name__icontains=query, isPublic=True)
+
+    if "HX-Request" in request.headers:
+        return render(request, 'gestionTemplates/partials/results_list.html', {'templates': templates})
+    
+    return render(request, 'gestionTemplates/search_main_page.html', {'templates': templates})
+
+def import_public_templates(request, template_id):
+
+    original = get_object_or_404(CampaignTemplate, id=template_id)
+
+    old_columns = list(original.columns.all())
+
+    original.id = None
+    original.pk = None
+    original.isPublic = False
+
+    original.user = request.user
+    original.name = "Copie de " + original.name
+
+    original.save()
+
+    for col in old_columns:
+        col.pk = None
+        col.id = None
+        col.template = original  # On lie la copie de la colonne au nouveau template
+        col.save()
+
+    liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+
+    context = {
+        'liste_templates': liste_templates,
+    }
+
+    return render(request, 'gestionTemplates/dashboard.html', context)
+
+def publier_template(request, template_id):
+
+    original = get_object_or_404(CampaignTemplate, id=template_id)
+
+    original.isPublic = True
+
+    original.save()
+
+    liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+
+    context = {
+        'liste_templates': liste_templates,
+    }
+
+    return render(request, 'gestionTemplates/dashboard.html', context)

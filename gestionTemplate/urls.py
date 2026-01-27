@@ -17,6 +17,7 @@ urlpatterns = [
     path('simulate/', views.simulate, name="simulate"),
     path('view/', views.view_plasmid, name="view_plasmid"),
     path('simulate/view_plasmid/<int:campaign_id>/', views.user_view_plasmid, name='user_view_plasmid'),
+    path('search/', views.plasmid_search, name='search_templates'),
 ]
 
 if settings.DEBUG:

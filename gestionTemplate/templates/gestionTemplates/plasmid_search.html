@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% load static %}
+
+{% block content %}
+<main class="templates-page">
+    <div class="page-header">
+        <h2>Recherche de plasmides</h2>
+    </div>
+
+    <!-- Choix Privé / Public -->
+    <form method="get" class="privacy-form" id="privacy-form">
+        <label>
+            <input type="radio" name="privacy" value="private" {% if request.GET.privacy == "private" %}checked{% endif %}>
+            Privé
+        </label>
+        <label>
+            <input type="radio" name="privacy" value="public" {% if request.GET.privacy == "public" %}checked{% endif %}>
+            Public
+        </label>
+        <button type="submit" class="btn">Afficher</button>
+    </form>
+
+    <hr>
+
+    {% if request.GET.privacy == "private" %}
+        {% if user.is_authenticated %}
+ 
+            {% if campaigns_with_plasmids %}
+                <div class="inline-form">
+                    <h3>Historique des plasmides de {{ user.first_name }}</h3>
+
+                    <form method="get" class="inline-form">
+                        <input type="hidden" name="privacy" value="private">  <!-- Champ caché -->
+                        <input type="text" name="q" placeholder="Entrez un nom ..." value="{{ request.GET.q|default:'' }}">
+                        <button type="submit" class="btn">Rechercher</button>
+                    </form>
+                </div>
+                {% for item in campaigns_with_plasmids %}
+                    <div class="templates-table">
+                        <h3>{{ item.campaign.name }} 
+                            <span class="status-badge {{ item.campaign.status }}">{{ item.campaign.status|capfirst }}</span>
+                        </h3>
+                        <p>Créée le : {{ item.campaign.created_at|date:"d/m/Y H:i" }} | Template : {{ item.campaign.template_file.name|default:"-" }}</p>
+
+                        <h4>Plasmides de l'archive :</h4>
+                        {% if item.plasmids_archive %}
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nom</th>
+                                        <th>Organisme</th>
+                                        <th>Longueur (bp)</th>
+                                        <th>Accession</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in item.plasmids_archive %}
+                                        <tr>
+                                            <td>{{ p.name }}</td>
+                                            <td>{{ p.organism|default:"-" }}</td>
+                                            <td>{{ p.length|default:"-" }}</td>
+                                            <td>{{ p.accession|default:"-" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>Aucun plasmide dans l'archive.</p>
+                        {% endif %}
+
+                        <h4>Plasmides des résultats :</h4>
+                        {% if item.plasmids_results %}
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Nom</th>
+                                        <th>Organisme</th>
+                                        <th>Longueur (bp)</th>
+                                        <th>Accession</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in item.plasmids_results %}
+                                        <tr>
+                                            <td>{{ p.name }}</td>
+                                            <td>{{ p.organism|default:"-" }}</td>
+                                            <td>{{ p.length|default:"-" }}</td>
+                                            <td>{{ p.accession|default:"-" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>Aucun plasmide dans le résultat.</p>
+                        {% endif %}
+                    </div>
+                    <hr>
+                {% endfor %}
+            {% else %}
+                <p>Aucune campagne trouvée.</p>
+            {% endif %}
+        {% else %}
+            <p>Veuillez vous connecter pour voir vos plasmides privés.</p>
+            <a href="{% url 'users:login' %}" class="btn btn-primary">Connexion</a>
+        {% endif %}
+    {% elif request.GET.privacy == "public" %}
+        <h3>Plasmides publics</h3>
+        <h4>Code à implémenter.</h4>
+        
+    {% else %}
+        <p>Sélectionnez Privé ou Public pour commencer.</p>
+    {% endif %}
+
+</main>
+{% endblock %}

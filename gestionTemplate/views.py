@@ -603,3 +603,75 @@ def user_view_plasmid(request, campaign_id):
         'files': files_in_zip
     })
 
+from Bio import SeqIO
+from io import TextIOWrapper
+
+def plasmid_search(request):
+    query = request.GET.get('q', '').lower()  # récupération du texte recherché
+    context = {}
+
+    if request.user.is_authenticated:
+        campaigns = Campaign.objects.filter(user=request.user).order_by('-created_at')
+        campaigns_with_plasmids = []
+
+        for camp in campaigns:
+            plasmids_in_archive = []
+            plasmids_in_results = []
+
+            # --- Plasmides archive ---
+            if camp.plasmid_archive:
+                try:
+                    with zipfile.ZipFile(camp.plasmid_archive.path, 'r') as zf:
+                        for f in zf.namelist():
+                            if f.lower().endswith(('.gb','.gbk')):
+                                try:
+                                    with zf.open(f) as gb_file:
+                                        text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                                        record = SeqIO.read(text_stream, "genbank")
+                                        p = {
+                                            "name": record.name,
+                                            "organism": record.annotations.get("organism", ""),
+                                            "length": len(record.seq)
+                                        }
+                                        # filtrage si query non vide
+                                        if not query or query in p["name"].lower() or query in p["organism"].lower():
+                                            plasmids_in_archive.append(p)
+                                except Exception as e:
+                                    plasmids_in_archive.append({"name": f"{f} (Erreur parsing: {e})"})
+                except Exception as e:
+                    plasmids_in_archive = [{"name": f"Erreur lecture archive : {e}"}]
+
+            # --- Plasmides résultats ---
+            if camp.result_file:
+                try:
+                    with zipfile.ZipFile(camp.result_file.path, 'r') as zf:
+                        for f in zf.namelist():
+                            if f.lower().endswith(('.gb','.gbk')):
+                                try:
+                                    with zf.open(f) as gb_file:
+                                        text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                                        record = SeqIO.read(text_stream, "genbank")
+                                        p = {
+                                            "name": record.name,
+                                            "organism": record.annotations.get("organism", ""),
+                                            "length": len(record.seq)
+                                        }
+                                        if not query or query in p["name"].lower() or query in p["organism"].lower():
+                                            plasmids_in_results.append(p)
+                                except Exception as e:
+                                    plasmids_in_results.append({"name": f"{f} (Erreur parsing: {e})"})
+                except Exception as e:
+                    plasmids_in_results = [{"name": f"Erreur lecture result_file : {e}"}]
+
+            campaigns_with_plasmids.append({
+                'campaign': camp,
+                'plasmids_archive': plasmids_in_archive,
+                'plasmids_results': plasmids_in_results
+            })
+
+        context['campaigns_with_plasmids'] = campaigns_with_plasmids
+
+    else:
+        context['campaigns_with_plasmids'] = []
+
+    return render(request, 'gestionTemplates/plasmid_search.html', context)

@@ -316,3 +316,100 @@ nav {
     border: none;
     cursor: pointer;
 }
+
+.collapse-container {
+    margin-bottom: 1.5rem;
+    border: 1px solid #dee3ea;
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.collapse-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    background-color: #f0f4f9;
+}
+
+.collapse-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #003b66;
+}
+
+.collapse-toggle {
+    font-weight: bold;
+    font-size: 1rem;
+    color: #007ab8;
+}
+
+.collapse-body {
+    padding: 1rem;
+    transition: max-height 0.3s ease;
+}
+
+.collapse-body.collapsed {
+    display: none;
+}
+
+.templates-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+}
+
+.templates-table th, .templates-table td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #dee3ea;
+    text-align: left;
+}
+
+.templates-table th {
+    background-color: #f0f4f9;
+    color: #003b66;
+    font-weight: 600;
+}
+
+.templates-table tr:hover {
+    background-color: #f8fafc;
+}
+
+.page-header h3 {
+    margin: 0;                 /* supprimer la margin par défaut du h3 */
+    font-size: 1.2rem;
+}
+
+.inline-form {
+    display: flex;           /* aligne les éléments horizontalement */
+    gap: 8px;                /* espace entre input et bouton */
+    align-items: center;     /* aligne verticalement si les hauteurs diffèrent */
+}
+
+.inline-form input {
+    flex: 1;                 /* l'input prend tout l'espace disponible */
+    padding: 6px 10px;       /* optionnel : pour un joli padding */
+}
+
+.inline-form button {
+    padding: 6px 12px;       /* optionnel : taille du bouton */
+}
+
+#privacy-form {
+    font-size: 0.8rem; /* réduit la taille du texte dans tout le formulaire */
+    display: flex;     /* aligne horizontalement */
+    gap: 6px;          /* espace entre les éléments */
+    align-items: center;
+}
+
+#privacy-form input[type="radio"] {
+    transform: scale(0.8); /* réduit la taille des boutons radio */
+}
+
+#privacy-form button {
+    font-size: 0.8rem;  /* réduit la taille du texte du bouton */
+    padding: 4px 8px;   /* réduit un peu le bouton */
+}

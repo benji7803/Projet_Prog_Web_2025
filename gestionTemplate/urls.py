@@ -18,6 +18,7 @@ urlpatterns = [
     path('simulate/view_plasmid/<int:campaign_id>/', views.user_view_plasmid, name='user_view_plasmid'),
     path('search-public/', views.search_public_templates, name='search_public_templates'),
     path('import-public-templates/<int:template_id>/', views.import_public_templates, name='import_public_templates'),
+    path('publier/<int:template_id>/', views.publier_template, name="publier")
 ]
 
 if settings.DEBUG:

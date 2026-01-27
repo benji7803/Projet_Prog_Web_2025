@@ -532,3 +532,19 @@ def import_public_templates(request, template_id):
     }
 
     return render(request, 'gestionTemplates/dashboard.html', context)
+
+def publier_template(request, template_id):
+
+    original = get_object_or_404(CampaignTemplate, id=template_id)
+
+    original.isPublic = True
+
+    original.save()
+
+    liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+
+    context = {
+        'liste_templates': liste_templates,
+    }
+
+    return render(request, 'gestionTemplates/dashboard.html', context)

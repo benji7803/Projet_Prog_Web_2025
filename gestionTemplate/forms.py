@@ -33,9 +33,14 @@ class CampaignTemplateForm(forms.ModelForm):
 # Formulaire pour la simulation anonyme (Lui ne change pas pour l'instant)
 class AnonymousSimulationForm(forms.Form):
     # --- CHAMPS REQUIS ---
-    template_file = forms.FileField(label="Fichier de Campagne (.xlsx) *", required=True)
-    plasmids_zip = forms.FileField(label="Archive des plasmides (.zip) *", required=True)
-    mapping_file = forms.FileField(label="Correspondance Noms <-> ID (.csv) *", required=True)
+    template_file = forms.FileField(label="Fichier de Campagne (.xlsx) *", required=False)
+    plasmids_zip = forms.FileField(label="Archive des plasmides (.zip) *", required=False)
+    mapping_file = forms.FileField(label="Correspondance Noms <-> ID (.csv) *", required=False)
+    
+    # --- SÉLECTION DE FICHIERS EXISTANTS (pour utilisateur connecté) ---
+    template_existing = forms.IntegerField(label="Utiliser un fichier existant", required=False, widget=forms.HiddenInput())
+    plasmid_collection_id = forms.IntegerField(label="Collection de plasmides", required=False, widget=forms.HiddenInput())
+    mapping_template_id = forms.IntegerField(label="Fichier de correspondance", required=False, widget=forms.HiddenInput())
 
     # --- CHAMPS OPTIONNELS (FICHIERS) ---
     primers_file = forms.FileField(
@@ -71,3 +76,21 @@ class AnonymousSimulationForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'P29,P30'}),
         help_text="IDs séparés par une virgule. Si vide, paramètre à None."
     )
+    
+    def clean(self):
+        """Validation personnalisée pour vérifier au moins une source pour chaque fichier"""
+        cleaned_data = super().clean()
+        
+        # Vérifier template
+        if not cleaned_data.get('template_file') and not cleaned_data.get('template_existing'):
+            raise forms.ValidationError("Vous devez sélectionner ou uploader un fichier de template.")
+        
+        # Vérifier plasmides
+        if not cleaned_data.get('plasmids_zip') and not cleaned_data.get('plasmid_collection_id'):
+            raise forms.ValidationError("Vous devez sélectionner ou uploader une archive de plasmides.")
+        
+        # Vérifier mapping
+        if not cleaned_data.get('mapping_file') and not cleaned_data.get('mapping_template_id'):
+            raise forms.ValidationError("Vous devez sélectionner ou uploader un fichier de correspondance.")
+        
+        return cleaned_data

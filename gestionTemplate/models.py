@@ -23,6 +23,7 @@ class CampaignTemplate(models.Model):
         default=EnzymeChoices.BSAI
     )
     separator_sortie = models.CharField(max_length=10, default='-')
+    isPublic = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name

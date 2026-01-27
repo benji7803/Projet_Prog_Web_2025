@@ -5,13 +5,37 @@
 
     <header class="page-header">
         <h2>Mes Templates de Campagne</h2>
+        <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template</a>
         {% if user.is_authenticated %}
-            <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template</a>
-        {% else %}
-            <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template Anonyme</a>
+            <button class="btn btn-primary" id="openSearchModalBtn">
+                Ajouter un template public
+            </button>
         {% endif %}
     </header>
 
+    <!-- Modal de recherche de templates publics -->
+    <dialog id="searchTemplateModal">
+        <div class="modal-body">
+            <input type="text" 
+                name="q" 
+                placeholder="Rechercher un template..."
+                hx-get="{% url 'templates:search_public_templates' %}" 
+                hx-trigger="keyup changed delay:500ms" 
+                hx-target="#templateSearchResults"
+                hx-indicator="#search-spinner">
+            
+            <div id="search-spinner" class="htmx-indicator" style="font-size: 0.8rem; color: #64748b;">
+                Recherche en cours...
+            </div>
+
+            <div id="templateSearchResults">
+                </div>
+        </div>
+
+        <button class="close-btn" onclick="this.closest('dialog').close()">Fermer</button>
+    </dialog>
+
+    <!-- Table des templates utilisateurs -->
     <section class="templates-table">
         <table>
             <thead>
@@ -31,6 +55,9 @@
                             <a href="{% url 'templates:download_template' t.id %}" class="btn btn-icon btn-info" title="Télécharger">📥</a>
                             <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-icon btn-warning" title="Modifier">✏️</a>
                             <a href="{% url 'templates:simulate' %}" class="btn btn-icon btn-primary" title="Simuler">🚀</a>
+                            {% if not t.isPublic %}
+                                <a href="{% url 'templates:publier' t.id %}" class="btn btn-icon btn-primary" title="Publier">📜</a>
+                            {% endif %}
                             <a href="{% url 'templates:delete_template' t.id %}" 
                                class="btn btn-icon btn-danger"
                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
@@ -79,9 +106,23 @@
             {% endfor %}
         </ul>
         {% else %}
-        <p class="empty-row">Aucune simulation précédente.</p>
+            <p class="empty-row">Aucune simulation précédente.</p>
         {% endif %}
     </section>
-
 </div>
-{% endblock %} 
+
+<script>
+    const modal = document.getElementById('searchTemplateModal');
+    const openBtn = document.getElementById('openSearchModalBtn');
+
+    openBtn.addEventListener('click', () => {
+        modal.showModal();
+    });
+
+    // Fermer si on clique à l'extérieur de la modal
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.close();
+    });
+</script>
+
+{% endblock %}

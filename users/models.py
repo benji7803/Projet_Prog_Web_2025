@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.db import transaction
+from django.core.validators import FileExtensionValidator
 
 class Equipe(models.Model):
     name = models.CharField(max_length=100)
@@ -66,10 +67,10 @@ class UserModel(AbstractUser):
 class Tablecor(models.Model):
     name = models.CharField('table name', max_length=150)
     equipe = models.ForeignKey(Equipe, on_delete=models.CASCADE, related_name='tablecor')
-    fichier = models.FileField(upload_to='equipes/docs/')
+    fichier = models.FileField(upload_to='equipes/docs/', validators=[FileExtensionValidator(allowed_extensions=['xlsx'])])
 
 class Seqcollection(models.Model):
     name = models.CharField('seq name', max_length=150)
     equipe = models.ForeignKey(Equipe, on_delete=models.CASCADE, related_name='seqcol')
-    fichier = models.FileField(upload_to='equipes/docs/')
+    fichier = models.FileField(upload_to='equipes/docs/', validators=[FileExtensionValidator(allowed_extensions=['zip'])])
 

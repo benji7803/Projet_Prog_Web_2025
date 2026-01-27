@@ -5,6 +5,7 @@ from django.contrib.auth import login, logout
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from .models import Equipe, UserModel, MembreEquipe, Tablecor, Seqcollection
+from django.http import FileResponse, Http404
 
 
 def register_view(request):
@@ -67,11 +68,13 @@ def team_detail(request, team_id):
     team = get_object_or_404(Equipe, id=team_id)  
     liens_membres = team.membreequipe_set.all().select_related('user')
     liste_table = team.tablecor.all()
+    liste_seqcol = team.seqcol.all()
 
     return render(request, 'users/team_detail.html', {
         'team': team,
         'lien_membres': liens_membres,
-        'list_table' : liste_table
+        'list_table' : liste_table,
+        'list_seqcol' : liste_seqcol
     })
 
 def invite_member(request, team_id):
@@ -136,6 +139,54 @@ def remove_table(request, team_id, table_id):
         table.delete()
 
     return redirect('users:team_detail', team_id=team_id)
+
+def download_table(request,team_id, table_id):
+    table = get_object_or_404(Tablecor, id=table_id)
+    team = get_object_or_404(Equipe, id=team_id)
+    try:
+        file_handle = table.fichier.open()
+        response = FileResponse(file_handle, as_attachment=True)
+        filename = table.fichier.name.split('/')[-1]
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+    except (FileNotFoundError, ValueError):
+        raise Http404("Le fichier est introuvable sur le serveur.")
+
+def add_seqcol(request, team_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    if request.method == "POST":
+        uploaded_seqcol = request.FILES.get('uploaded_seqcol')
+        if uploaded_seqcol:
+            Seqcollection.objects.create(
+                name = uploaded_seqcol.name,
+                equipe = team,
+                fichier = uploaded_seqcol
+            )
+            return redirect('users:team_detail', team_id=team.id)
+    return redirect('users:team_detail', team_id=team.id)
+
+def remove_seqcol(request, team_id, seqcol_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    seqcol = get_object_or_404(Seqcollection, id=seqcol_id)
+    if request.method == "POST":
+        seqcol.fichier.delete(save=False)
+        seqcol.delete()
+
+    return redirect('users:team_detail', team_id=team_id)
+
+def download_seqcol(request,team_id, seqcol_id):
+    seqcol = get_object_or_404(Seqcollection, id=seqcol_id)
+    team = get_object_or_404(Equipe, id=team_id)
+    try:
+        file_handle = seqcol.fichier.open()
+        response = FileResponse(file_handle, as_attachment=True)
+        filename = seqcol.fichier.name.split('/')[-1]
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+    except (FileNotFoundError, ValueError):
+        raise Http404("Le fichier est introuvable sur le serveur.")
 
 
 def delete_plasmid_collection(request, collection_id):

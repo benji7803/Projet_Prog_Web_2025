@@ -59,19 +59,22 @@
 {% endif %}
 
 <section class="files-section">
-    <h3>Tableau de correspondances</h3>
+    <h3>Tableau de correspondances de l'équipe</h3>
     {% if request.user == team.leader %}
         <form action="{% url 'users:add_table' team.id %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="file" id="file-upload" name="uploaded_table" accept=".xlsx">
-            <button type="submit">Ajouter le fichier</button>
+            <button type="submit">Ajouter un fichier</button>
         </form>
     {% endif %}
     {% for table in list_table %}
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
-                <span>
-                    {{ table.name }}
-                </span>
+                <span>{{ table.name }}</span>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{% url 'users:download_table' team.id table.id %}" 
+                        style="background-color: #28a745; color: white; padding: 5px 12px; text-decoration: none; border-radius: 4px; font-size: 13px;">
+                        Télécharger
+                    </a>
                 {% if request.user == team.leader %}
                 <div style="display: flex; gap: 8px;">
                     <form action="{% url 'users:remove_table' team.id table.id %}" method="post">
@@ -79,6 +82,36 @@
                         <button type="submit" class="btn-icon" title="Supprimmer la table" style="background-color: #8B0000;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette table ?');">Supprimer</button>
                     </form>
                 {% endif %}
+            </div>
+        </div>
+    {% endfor %}
+</section>
+
+<section class="files-section">
+    <h3>Collections de plasmides de l'équipe</h3>
+    {% if request.user == team.leader %}
+        <form action="{% url 'users:add_seqcol' team.id %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" id="file-upload" name="uploaded_seqcol" accept=".zip">
+            <button type="submit">Ajouter un fichier</button>
+        </form>
+    {% endif %}
+    {% for seqcol in list_seqcol %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee;">
+            <span>{{ seqcol.name }}</span>
+            <div style="display: flex; gap: 8px;">
+                <a href="{% url 'users:download_seqcol' team.id seqcol.id %}" 
+                    style="background-color: #28a745; color: white; padding: 5px 12px; text-decoration: none; border-radius: 4px; font-size: 13px;">
+                    Télécharger
+                </a>
+                {% if request.user == team.leader %}
+                    <form action="{% url 'users:remove_seqcol' team.id seqcol.id %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-icon" title="Supprimmer la collection" style="background-color: #8B0000;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette collection ?');">Supprimer</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
     {% endfor %}
 </section>
 

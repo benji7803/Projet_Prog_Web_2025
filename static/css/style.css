@@ -488,3 +488,49 @@ nav {
     margin: 15px;
     font-weight: 500;
 }
+
+/* === Onglets améliorés === */
+.tabs {
+    display: flex;
+    width: 100%;
+    margin-bottom: 1.5rem;
+    background-color: #f5f7fb;
+    border-radius: 10px 10px 0 0;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.tabs a {
+    flex: 1;
+    text-align: center;
+    padding: 1rem 0; /* onglets plus grands */
+    font-size: 1rem; /* même taille que le reste */
+    font-weight: 600;
+    color: #555;
+    text-decoration: none;
+    border-bottom: 4px solid transparent;
+    transition: all 0.25s ease;
+    margin-right: 2px; /* petit espace entre onglets */
+    border-radius: 8px 8px 0 0;
+}
+
+.tabs a:last-child {
+    margin-right: 0;
+}
+
+.tabs a:hover {
+    background-color: #e0e6f0;
+    color: #007ab8;
+}
+
+.tabs a.active, 
+.tabs a.bg-white {
+    background-color: #ffffff;
+    color: #007ab8;
+    border-bottom: 4px solid #007ab8;
+}
+
+.tabs a.active:hover {
+    background-color: #ffffff;
+    color: #005f8e;
+}

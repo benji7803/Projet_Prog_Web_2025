@@ -51,7 +51,7 @@
                                         <th>Nom</th>
                                         <th>Organisme</th>
                                         <th>Longueur (bp)</th>
-                                        <th>Accession</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -60,7 +60,12 @@
                                             <td>{{ p.name }}</td>
                                             <td>{{ p.organism|default:"-" }}</td>
                                             <td>{{ p.length|default:"-" }}</td>
-                                            <td>{{ p.accession|default:"-" }}</td>
+                                            <td>
+                                            <a href="{% url 'templates:user_view_plasmid_archive' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">
+                                                Visualiser {{ p.name }}
+                                            </a>
+
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -77,7 +82,7 @@
                                         <th>Nom</th>
                                         <th>Organisme</th>
                                         <th>Longueur (bp)</th>
-                                        <th>Accession</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -86,7 +91,11 @@
                                             <td>{{ p.name }}</td>
                                             <td>{{ p.organism|default:"-" }}</td>
                                             <td>{{ p.length|default:"-" }}</td>
-                                            <td>{{ p.accession|default:"-" }}</td>
+                                            <td>
+                                                <a href="{% url 'templates:user_view_plasmid' item.campaign.id %}?plasmid={{ p.name }}" class="btn btn-sm btn-secondary">
+                                                Visualiser {{ p.name}}
+                                            </a>
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>

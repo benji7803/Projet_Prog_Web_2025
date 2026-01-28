@@ -562,7 +562,9 @@ def view_plasmid(request):
 
 def user_view_plasmid(request, campaign_id):
     campaign = get_object_or_404(Campaign, id=campaign_id)
+    plasmid_name = request.GET.get('plasmid', None)
     plasmid_maps = []  # liste des tuples (nom, linear_url, circular_url)
+    files_in_zip = []  # liste des fichiers dans le zip (hors .gb)
 
     if campaign.result_file:
         zip_path = campaign.result_file.path
@@ -582,6 +584,9 @@ def user_view_plasmid(request, campaign_id):
                 for i in range(len(files_in_zip)):
                     if files_in_zip[i].startswith('output/'):
                         files_in_zip[i] = files_in_zip[i][7:]
+                if plasmid_name:
+                    # Filtrer pour ne garder que le plasmide demandé
+                    gb_files = [f for f in gb_files if os.path.basename(f).replace('.gb', '') == plasmid_name]
 
                 for f in gb_files:
                     # extraire le fichier dans un dossier temporaire
@@ -632,7 +637,8 @@ def plasmid_search(request):
                                         p = {
                                             "name": record.name,
                                             "organism": record.annotations.get("organism", ""),
-                                            "length": len(record.seq)
+                                            "length": len(record.seq),
+                                            "file_name" : f
                                         }
                                         # filtrage si query non vide
                                         if not query or query in p["name"].lower() or query in p["organism"].lower():
@@ -729,3 +735,44 @@ def publier_template(request, template_id):
     }
 
     return render(request, 'gestionTemplates/dashboard.html', context)
+
+def user_view_plasmid_archive(request, campaign_id):
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+    plasmid_name = request.GET.get('plasmid', None)
+    plasmid_maps = []  # liste des tuples (nom, linear_url, circular_url)
+    files_in_zip = []  # liste des fichiers dans le zip (hors .gb)
+    print(plasmid_name)
+
+    if campaign.plasmid_archive:
+        zip_path = campaign.plasmid_archive.path
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                # filtrer les .gb et enlever les dossiers
+                gb_files = [
+                    f for f in zip_ref.namelist()
+                    if f.lower().endswith('.gb')
+                ]
+                if plasmid_name:
+                    # Filtrer pour ne garder que le plasmide demandé
+                    gb_files = [f for f in gb_files if os.path.basename(f).replace('.gb', '') == plasmid_name]
+
+                for f in gb_files:
+                    # extraire le fichier dans un dossier temporaire
+                    temp_dir = os.path.join("temp_uploads", "gb_temp")
+                    os.makedirs(temp_dir, exist_ok=True)
+                    extracted_path = zip_ref.extract(f, path=temp_dir)
+
+                    # générer les cartes
+                    linear_url, circular_url = generate_plasmid_maps(extracted_path)
+                    # récupérer juste le nom du plasmide pour l'affichage
+                    plasmid_name = os.path.basename(f).replace('.gb', '')
+                    plasmid_maps.append((plasmid_name, linear_url, circular_url))
+
+        except zipfile.BadZipFile:
+            plasmid_maps = []
+
+    return render(request, 'gestionTemplates/user_view_plasmid_archive.html', {
+        'campaign': campaign,
+        'plasmid_maps': plasmid_maps,
+        'files': files_in_zip
+    })

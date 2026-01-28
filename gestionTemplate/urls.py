@@ -20,7 +20,8 @@ urlpatterns = [
     path('search/', views.plasmid_search, name='search_templates'),
     path('search-public/', views.search_public_templates, name='search_public_templates'),
     path('import-public-templates/<int:template_id>/', views.import_public_templates, name='import_public_templates'),
-    path('publier/<int:template_id>/', views.publier_template, name="publier")
+    path('publier/<int:template_id>/', views.publier_template, name="publier"),
+    path("user/plasmid_archive/<int:campaign_id>/", views.user_view_plasmid_archive, name="user_view_plasmid_archive"),
 ]
 
 if settings.DEBUG:

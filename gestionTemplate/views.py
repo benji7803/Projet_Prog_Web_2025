@@ -613,12 +613,18 @@ from Bio import SeqIO
 from io import TextIOWrapper
 
 def plasmid_search(request):
-    query = request.GET.get('q', '').lower().strip()  # récupération du texte recherché
     privacy = request.GET.get('privacy', '')
-    context = {}
+    query_name = request.GET.get('name', '').lower().strip()
+    query_organism = request.GET.get('organism', '').lower().strip()
+    query_seq = request.GET.get('sequence', '').upper().strip()
+    query_site = request.GET.get('site', '').lower().strip()
 
-    # --- Cas 1 : recherche Entrez ---
-    # --- Cas 1 : recherche Entrez ---
+    context = {}
+    from gestionTemplate.models import Plasmide as PublicPlasmide
+
+    # -------------------------------
+    # Cas 1 : recherche Entrez
+    # -------------------------------
     if privacy == "search_enter":
         name = request.GET.get('name', '').strip()
         organism = request.GET.get('organism', '').strip()
@@ -627,7 +633,6 @@ def plasmid_search(request):
         sequence = request.GET.get('sequence', '').strip()
 
         if any([name, organism, plasmid_type, binding_site, sequence]):
-            # Construction du terme de recherche NCBI
             terms = []
             if name:
                 terms.append(f"{name}[Title]")
@@ -644,62 +649,70 @@ def plasmid_search(request):
             url = f"https://www.ncbi.nlm.nih.gov/nuccore/?term={entrez_query}"
             return redirect(url)
 
-        # Sinon : afficher le formulaire vide
         return render(request, 'gestionTemplates/plasmid_search.html', context)
 
-    # --- Cas 2 : campagnes privées ---
-    if request.user.is_authenticated:
+    # -------------------------------
+    # Cas 2 : recherche privée
+    # -------------------------------
+    elif privacy == "private" and request.user.is_authenticated:
         campaigns = Campaign.objects.filter(user=request.user).order_by('-created_at')
         campaigns_with_plasmids = []
+
+        # Précharger tous les noms publics pour optimiser
+        public_names = set(PublicPlasmide.objects.filter(dossier="public").values_list('name', flat=True))
 
         for camp in campaigns:
             plasmids_in_archive = []
             plasmids_in_results = []
 
-            # --- Plasmides archive ---
-            if camp.plasmid_archive:
-                try:
-                    with zipfile.ZipFile(camp.plasmid_archive.path, 'r') as zf:
-                        for f in zf.namelist():
-                            if f.lower().endswith(('.gb', '.gbk')):
-                                try:
-                                    with zf.open(f) as gb_file:
-                                        text_stream = TextIOWrapper(gb_file, encoding='utf-8')
-                                        record = SeqIO.read(text_stream, "genbank")
-                                        p = {
-                                            "name": record.name,
-                                            "organism": record.annotations.get("organism", ""),
-                                            "length": len(record.seq),
-                                            "file_name": f
-                                        }
-                                        if not query or query in p["name"].lower() or query in p["organism"].lower():
-                                            plasmids_in_archive.append(p)
-                                except Exception as e:
-                                    plasmids_in_archive.append({"name": f"{f} (Erreur parsing: {e})"})
-                except Exception as e:
-                    plasmids_in_archive = [{"name": f"Erreur lecture archive : {e}"}]
+            # Fonction utilitaire pour filtrer par critères
+            def match_criteria(p):
+                if query_name and query_name not in p["name"].lower():
+                    return False
+                if query_organism and query_organism not in p["organism"].lower():
+                    return False
+                if query_seq and query_seq not in p.get("sequence", ""):
+                    return False
+                if query_site:
+                    if not any(query_site in s.lower() for s in p.get("sites", [])):
+                        return False
+                return True
 
-            # --- Plasmides résultats ---
-            if camp.result_file:
+            # Fonction pour extraire plasmides depuis un zip
+            def extract_plasmids_from_zip(zip_path):
+                results = []
                 try:
-                    with zipfile.ZipFile(camp.result_file.path, 'r') as zf:
+                    with zipfile.ZipFile(zip_path, 'r') as zf:
                         for f in zf.namelist():
                             if f.lower().endswith(('.gb', '.gbk')):
                                 try:
                                     with zf.open(f) as gb_file:
                                         text_stream = TextIOWrapper(gb_file, encoding='utf-8')
-                                        record = SeqIO.read(text_stream, "genbank")
-                                        p = {
-                                            "name": record.name,
-                                            "organism": record.annotations.get("organism", ""),
-                                            "length": len(record.seq)
-                                        }
-                                        if not query or query in p["name"].lower() or query in p["organism"].lower():
-                                            plasmids_in_results.append(p)
+                                        # SeqIO.parse pour gérer plusieurs enregistrements
+                                        for record in SeqIO.parse(text_stream, "genbank"):
+                                            p = {
+                                                "name": record.name,
+                                                "organism": record.annotations.get("organism", ""),
+                                                "length": len(record.seq),
+                                                "sequence": str(record.seq),
+                                                "sites": [feat.qualifiers.get("gene",[None])[0] for feat in record.features if "gene" in feat.qualifiers]
+                                            }
+                                            if match_criteria(p):
+                                                # Détection public
+                                                p["is_public"] = p["name"] in public_names
+                                                results.append(p)
                                 except Exception as e:
-                                    plasmids_in_results.append({"name": f"{f} (Erreur parsing: {e})"})
+                                    results.append({"name": f"{f} (Erreur parsing: {e})"})
                 except Exception as e:
-                    plasmids_in_results = [{"name": f"Erreur lecture result_file : {e}"}]
+                    results.append({"name": f"Erreur lecture archive : {e}"})
+                return results
+
+            # Extraction archive
+            if camp.plasmid_archive:
+                plasmids_in_archive = extract_plasmids_from_zip(camp.plasmid_archive.path)
+            # Extraction résultats
+            if camp.result_file:
+                plasmids_in_results = extract_plasmids_from_zip(camp.result_file.path)
 
             campaigns_with_plasmids.append({
                 'campaign': camp,
@@ -708,6 +721,25 @@ def plasmid_search(request):
             })
 
         context['campaigns_with_plasmids'] = campaigns_with_plasmids
+
+    # -------------------------------
+    # Cas 3 : recherche publique
+    # -------------------------------
+    elif privacy == "public":
+        plasmides_qs = PublicPlasmide.objects.all()
+
+        # Filtrage dynamique
+        if query_name:
+            plasmides_qs = plasmides_qs.filter(name__icontains=query_name)
+        if query_organism:
+            plasmides_qs = plasmides_qs.filter(organism__icontains=query_organism)
+        if query_seq:
+            plasmides_qs = plasmides_qs.filter(sequence__icontains=query_seq)
+        if query_site:
+            plasmides_qs = plasmides_qs.filter(features__icontains=query_site)
+
+        context['public_plasmids'] = plasmides_qs
+
     else:
         context['campaigns_with_plasmids'] = []
 
@@ -772,7 +804,6 @@ def user_view_plasmid_archive(request, campaign_id):
     plasmid_name = request.GET.get('plasmid', None)
     plasmid_maps = []  # liste des tuples (nom, linear_url, circular_url)
     files_in_zip = []  # liste des fichiers dans le zip (hors .gb)
-    print(plasmid_name)
 
     if campaign.plasmid_archive:
         zip_path = campaign.plasmid_archive.path
@@ -807,3 +838,166 @@ def user_view_plasmid_archive(request, campaign_id):
         'plasmid_maps': plasmid_maps,
         'files': files_in_zip
     })
+
+from django.contrib import messages
+
+def make_public(request):
+    if request.method == "POST" and request.user.is_authenticated:
+        campaign_id = request.POST.get("campaign_id")
+        plasmid_name = request.POST.get("plasmid_name")
+
+        campaign = get_object_or_404(Campaign, id=campaign_id, user=request.user)
+
+        # Fonction utilitaire pour traiter un fichier zip
+        def process_zip(zip_path):
+            try:
+                with zipfile.ZipFile(zip_path, "r") as zf:
+                    gb_file_name = None
+                    for f in zf.namelist():
+                        if f.lower().endswith(('.gb', '.gbk')) and plasmid_name.lower() in f.lower():
+                            gb_file_name = f
+                            break
+
+                    if not gb_file_name:
+                        return None, "Fichier GenBank non trouvé."
+
+                    with zf.open(gb_file_name) as gb_file:
+                        text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                        record = SeqIO.read(text_stream, "genbank")
+                        return record, None
+            except Exception as e:
+                return None, f"Erreur lors de l'import : {e}"
+
+        record = None
+        error_msg = None
+
+        # Chercher dans l'archive
+        if campaign.plasmid_archive:
+            record, error_msg = process_zip(campaign.plasmid_archive.path)
+
+        # Chercher dans le fichier result_file si pas trouvé
+        if not record and campaign.result_file:
+            record, error_msg = process_zip(campaign.result_file.path)
+
+        if not record:
+            messages.error(request, error_msg or "Plasmide non trouvé.")
+            return redirect(request.META.get("HTTP_REFERER"))
+
+        # Extraire les sites
+        sites = []
+        for feat in record.features:
+            for key in ["note", "gene", "product"]:
+                if key in feat.qualifiers:
+                    sites.extend(feat.qualifiers[key])
+
+        # Créer ou mettre à jour le plasmide public
+        Plasmide.objects.update_or_create(
+            name=record.name,
+            defaults={
+                "dossier": "public",
+                "organism": record.annotations.get("organism", ""),
+                "length": len(record.seq),
+                "sequence": str(record.seq),
+                "features": {"raw": [f.qualifiers for f in record.features]}
+            }
+        )
+
+        messages.success(request, f"Plasmide '{record.name}' rendu public avec succès !")
+        return redirect(request.META.get("HTTP_REFERER"))
+
+    messages.error(request, "Action non autorisée.")
+    return redirect("plasmid_search")
+
+def make_public_bulk(request):
+    if request.method != "POST" or not request.user.is_authenticated:
+        messages.error(request, "Action non autorisée.")
+        return redirect("plasmid_search")
+
+    campaign_id = request.POST.get("campaign_id")
+    campaign = get_object_or_404(Campaign, id=campaign_id, user=request.user)
+
+    # Fonction utilitaire pour traiter un zip et créer les plasmides publics
+    def process_zip(zip_path):
+        created = 0
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                for f in zf.namelist():
+                    if f.lower().endswith(('.gb', '.gbk')):
+                        with zf.open(f) as gb_file:
+                            text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                            record = SeqIO.read(text_stream, "genbank")
+
+                            if Plasmide.objects.filter(name=record.name, dossier="public").exists():
+                                continue  # éviter les doublons
+
+                            Plasmide.objects.create(
+                                name=record.name,
+                                description=record.annotations.get("source", ""),
+                                dossier="public",
+                                organism=record.annotations.get("organism",""),
+                                mol_type=record.annotations.get("molecule_type",""),
+                                length=len(record.seq),
+                                sequence=str(record.seq),
+                                features={"raw":[f.qualifiers for f in record.features]},
+                                gc_content=(record.seq.count('G')+record.seq.count('C'))/len(record.seq)*100 if len(record.seq)>0 else None
+                            )
+                            created += 1
+        except Exception as e:
+            messages.error(request, f"Erreur lors de l'import depuis {zip_path} : {e}")
+        return created
+
+    total_created = 0
+
+    if campaign.plasmid_archive:
+        total_created += process_zip(campaign.plasmid_archive.path)
+    if campaign.result_file:
+        total_created += process_zip(campaign.result_file.path)
+
+    if total_created > 0:
+        messages.success(request, f"{total_created} plasmide(s) de la campagne ont été rendus publics !")
+    else:
+        messages.info(request, "Aucun plasmide nouveau à rendre public.")
+
+    return redirect(request.META.get("HTTP_REFERER"))
+
+from django.http import HttpResponse, Http404
+from io import StringIO
+from .models import Plasmide  # adapte selon ton modèle
+
+def download_plasmid(request):
+    plasmid_name = request.GET.get("plasmid_name")
+    campaign_id = request.GET.get("campaign_id")
+    plasmid_id = request.GET.get("plasmid_id")  # pour plasmides publics
+
+    if plasmid_id:  # téléchargement d'un plasmide public
+        plasmid = get_object_or_404(Plasmide, id=plasmid_id)
+        response = HttpResponse(plasmid.sequence, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename={plasmid.name}.gb'
+        return response
+
+    elif campaign_id and plasmid_name:  # téléchargement d'un plasmide privé
+        campaign = get_object_or_404(Campaign, id=campaign_id, user=request.user)
+        if not campaign.plasmid_archive:
+            raise Http404("Aucune archive trouvée pour cette campagne.")
+
+        # Chercher le plasmide dans le zip
+        with zipfile.ZipFile(campaign.plasmid_archive.path, 'r') as zf:
+            gb_file_name = None
+            for f in zf.namelist():
+                if f.lower().endswith(('.gb', '.gbk')) and plasmid_name.lower() in f.lower():
+                    gb_file_name = f
+                    break
+            if not gb_file_name:
+                raise Http404("Plasmide non trouvé dans l'archive.")
+
+            with zf.open(gb_file_name) as gb_file:
+                text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                content = text_stream.read()
+
+        response = HttpResponse(content, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename={plasmid_name}.gb'
+        return response
+
+    else:
+        raise Http404("Paramètres manquants pour le téléchargement.")
+    

@@ -88,7 +88,7 @@ class Plasmide(models.Model):
     name = models.CharField("Nom du plasmide", max_length=100)
     description = models.TextField("Description", blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-    dossier = models.CharField("dossier pour regrouper les plasmides", default=None)
+    dossier = models.CharField("dossier pour regrouper les plasmides",max_length=255,default="public")    
     team = models.ForeignKey('users.Equipe', on_delete=models.CASCADE, null=True, blank=True)
 
 

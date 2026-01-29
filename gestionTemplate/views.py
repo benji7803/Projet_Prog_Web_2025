@@ -613,9 +613,41 @@ from Bio import SeqIO
 from io import TextIOWrapper
 
 def plasmid_search(request):
-    query = request.GET.get('q', '').lower()  # récupération du texte recherché
+    query = request.GET.get('q', '').lower().strip()  # récupération du texte recherché
+    privacy = request.GET.get('privacy', '')
     context = {}
 
+    # --- Cas 1 : recherche Entrez ---
+    # --- Cas 1 : recherche Entrez ---
+    if privacy == "search_enter":
+        name = request.GET.get('name', '').strip()
+        organism = request.GET.get('organism', '').strip()
+        plasmid_type = request.GET.get('type', '').strip()
+        binding_site = request.GET.get('site', '').strip()
+        sequence = request.GET.get('sequence', '').strip()
+
+        if any([name, organism, plasmid_type, binding_site, sequence]):
+            # Construction du terme de recherche NCBI
+            terms = []
+            if name:
+                terms.append(f"{name}[Title]")
+            if organism:
+                terms.append(f"{organism}[Organism]")
+            if plasmid_type:
+                terms.append(f"{plasmid_type}[All Fields]")
+            if binding_site:
+                terms.append(f"{binding_site}[All Fields]")
+            if sequence:
+                terms.append(f"{sequence}[Sequence]")
+
+            entrez_query = "+AND+".join(terms)
+            url = f"https://www.ncbi.nlm.nih.gov/nuccore/?term={entrez_query}"
+            return redirect(url)
+
+        # Sinon : afficher le formulaire vide
+        return render(request, 'gestionTemplates/plasmid_search.html', context)
+
+    # --- Cas 2 : campagnes privées ---
     if request.user.is_authenticated:
         campaigns = Campaign.objects.filter(user=request.user).order_by('-created_at')
         campaigns_with_plasmids = []
@@ -629,7 +661,7 @@ def plasmid_search(request):
                 try:
                     with zipfile.ZipFile(camp.plasmid_archive.path, 'r') as zf:
                         for f in zf.namelist():
-                            if f.lower().endswith(('.gb','.gbk')):
+                            if f.lower().endswith(('.gb', '.gbk')):
                                 try:
                                     with zf.open(f) as gb_file:
                                         text_stream = TextIOWrapper(gb_file, encoding='utf-8')
@@ -638,9 +670,8 @@ def plasmid_search(request):
                                             "name": record.name,
                                             "organism": record.annotations.get("organism", ""),
                                             "length": len(record.seq),
-                                            "file_name" : f
+                                            "file_name": f
                                         }
-                                        # filtrage si query non vide
                                         if not query or query in p["name"].lower() or query in p["organism"].lower():
                                             plasmids_in_archive.append(p)
                                 except Exception as e:
@@ -653,7 +684,7 @@ def plasmid_search(request):
                 try:
                     with zipfile.ZipFile(camp.result_file.path, 'r') as zf:
                         for f in zf.namelist():
-                            if f.lower().endswith(('.gb','.gbk')):
+                            if f.lower().endswith(('.gb', '.gbk')):
                                 try:
                                     with zf.open(f) as gb_file:
                                         text_stream = TextIOWrapper(gb_file, encoding='utf-8')
@@ -677,11 +708,11 @@ def plasmid_search(request):
             })
 
         context['campaigns_with_plasmids'] = campaigns_with_plasmids
-
     else:
         context['campaigns_with_plasmids'] = []
 
     return render(request, 'gestionTemplates/plasmid_search.html', context)
+
 def search_public_templates(request):
     query = request.GET.get('q', '')
     templates = CampaignTemplate.objects.filter(name__icontains=query, isPublic=True)

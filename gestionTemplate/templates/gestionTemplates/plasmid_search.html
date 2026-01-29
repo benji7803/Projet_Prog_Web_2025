@@ -126,17 +126,44 @@
         <p>Code à implémenter.</p>
 
     {% elif request.GET.privacy == "search_enter" %}
-        <h3>Recherche avancée</h3>
-        <form method="get" class="inline-form">
+        <h3>Recherche avancée Entrez (NCBI)</h3>
+
+        <form method="get" class="advanced-form">
             <input type="hidden" name="privacy" value="search_enter">
-            <input type="text" name="q" placeholder="Entrez un terme..." value="{{ request.GET.q|default:'' }}">
-            <button type="submit" class="btn">Rechercher</button>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nom du plasmide</label>
+                    <input type="text" name="name" placeholder="ex: pUC19" value="{{ request.GET.name|default:'' }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Organisme</label>
+                    <input type="text" name="organism" placeholder="ex: Escherichia coli" value="{{ request.GET.organism|default:'' }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Type</label>
+                    <input type="text" name="type" placeholder="ex: cloning vector" value="{{ request.GET.type|default:'' }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Site de fixation</label>
+                    <input type="text" name="site" placeholder="ex: EcoRI" value="{{ request.GET.site|default:'' }}">
+                </div>
+
+                <div class="form-group">
+                    <label>Bout de séquence</label>
+                    <input type="text" name="sequence" placeholder="ex: ATGCGTAC" value="{{ request.GET.sequence|default:'' }}">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-3">Rechercher sur NCBI</button>
         </form>
-        {% if request.GET.q %}
-            <p>Résultats pour : <strong>{{ request.GET.q }}</strong></p>
-        {% else %}
-            <p>Aucun terme saisi.</p>
-        {% endif %}
+
+        <p class="mt-4 text-gray-600 text-sm">
+            Vous serez redirigé vers le site du NCBI (nuccore) avec les résultats correspondants.
+        </p>
 
     {% else %}
         <p>Sélectionnez un onglet pour commencer.</p>

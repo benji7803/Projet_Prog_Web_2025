@@ -25,6 +25,7 @@ urlpatterns = [
     path('make_public/', views.make_public, name='make_public'),
     path('make_public_bulk/', views.make_public_bulk, name='make_public_bulk'),
     path('plasmid/download/', views.download_plasmid, name='download_plasmid'),
+    path('plasmid/<int:plasmid_id>/', views.plasmid_detail, name='plasmid_detail'),
 ]
 
 if settings.DEBUG:

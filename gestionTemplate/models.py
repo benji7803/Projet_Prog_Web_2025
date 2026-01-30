@@ -83,14 +83,12 @@ class MappingTemplate(models.Model):
     def __str__(self):
         return f"{self.name} ({self.user.username})"
 
-
 class Plasmide(models.Model):
     name = models.CharField("Nom du plasmide", max_length=100)
     description = models.TextField("Description", blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-    dossier = models.CharField("dossier pour regrouper les plasmides",max_length=255,default="public")    
+    dossier = models.CharField("Dossier", max_length=255, default="public")    
     team = models.ForeignKey('users.Equipe', on_delete=models.CASCADE, null=True, blank=True)
-
 
     # GenBank fields
     accession = models.CharField("Accession", max_length=50, blank=True)
@@ -107,14 +105,27 @@ class Plasmide(models.Model):
     features = models.JSONField("Features (brut)", null=True, blank=True)
     gc_content = models.FloatField("GC (%)", null=True, blank=True)
 
+    class Meta:
+        unique_together = ('name', 'dossier')  # empêche doublons dans le même dossier
+
+    def __str__(self):
+        return self.name
+
     @classmethod
     def create_from_genbank(cls, filepath, dossier_nom=None):
         """
-        Parse a simple GenBank file and create/save a Plasmide instance.
-        Returns the created instance.
+        Parse un fichier GenBank et crée ou récupère un Plasmide.
+        Retourne l'objet Plasmide.
         """
-        import re, os
+        import os
+        name = os.path.splitext(os.path.basename(filepath))[0]
 
+        # Vérifier si le plasmide existe déjà
+        existing = cls.objects.filter(name=name, dossier=dossier_nom).first()
+        if existing:
+            return existing
+
+        # Lecture du fichier GenBank
         with open(filepath, 'r', encoding='utf-8') as fh:
             lines = [l.rstrip('\n') for l in fh]
 
@@ -129,15 +140,11 @@ class Plasmide(models.Model):
                 m_mol = re.search(r'\d+\s+bp\s+([^\s]+)', line)
                 if m_mol:
                     fields['mol_type'] = m_mol.group(1)
-                parts = line.split()
-                if len(parts) > 1:
-                    fields['locus'] = parts[1]
             elif line.startswith('DEFINITION'):
                 val = line[len('DEFINITION'):].strip()
                 j = i + 1
                 while j < len(lines) and lines[j].startswith(' '):
                     cont = lines[j].strip()
-                    # stop if next keyword likely starts (heuristic)
                     if re.match(r'^[A-Z]+', cont) and cont.split()[0] in ('ACCESSION','VERSION','KEYWORDS','SOURCE','REFERENCE','FEATURES','ORIGIN','LOCUS','DEFINITION'):
                         break
                     val += ' ' + cont
@@ -178,7 +185,7 @@ class Plasmide(models.Model):
                 i = j
             i += 1
 
-        name = os.path.splitext(os.path.basename(filepath))[0]
+        # Création du plasmide
         plasmide = cls.objects.create(
             name=name,
             description=fields.get('definition',''),

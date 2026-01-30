@@ -522,19 +522,18 @@ def delete_campaign(request, campaign_id):
 def view_plasmid(request):
     if request.method == 'POST':
         plasmid_file = request.FILES.get('plasmid_file')
+        is_public = request.POST.get('is_public') == 'on'
+        dossier_nom = "public" if is_public else (request.user.username if request.user.is_authenticated else "private")
 
-        # Vérification du fichier envoyé
         if not plasmid_file:
-            return render(request, 'gestionTemplates/view_plasmid.html', {
-                'error': "Aucun fichier n’a été sélectionné."
-            })
+            messages.error(request, "Aucun fichier n’a été sélectionné.")
+            return redirect('templates:view_plasmid')
 
         if not plasmid_file.name.lower().endswith('.gb'):
-            return render(request, 'gestionTemplates/view_plasmid.html', {
-                'error': "Le fichier doit être au format .gb (GenBank)."
-            })
+            messages.error(request, "Le fichier doit être au format .gb (GenBank).")
+            return redirect('templates:view_plasmid')
 
-        # --- Sauvegarde temporaire du fichier GenBank ---
+        # Sauvegarde temporaire
         upload_subdir = "temp_uploads/genbank_files"
         upload_dir = os.path.join(settings.MEDIA_ROOT, upload_subdir)
         os.makedirs(upload_dir, exist_ok=True)
@@ -544,21 +543,44 @@ def view_plasmid(request):
             for chunk in plasmid_file.chunks():
                 destination.write(chunk)
 
-        # --- Génération des cartes linéaire et circulaire ---
-        linear_url, circular_url = generate_plasmid_maps(file_path)
+        try:
+            # Création ou récupération du plasmide
+            plasmide = Plasmide.create_from_genbank(file_path, dossier_nom=dossier_nom)
+            if request.user.is_authenticated:
+                plasmide.user = request.user
+                plasmide.save()
 
-        # Log pour debug
-        print("→ Fichiers générés :", linear_url, circular_url)
+            # Génération des cartes
+            linear_url, circular_url = generate_plasmid_maps(file_path)
 
-        # --- Affichage dans le template ---
-        return render(request, 'gestionTemplates/view_plasmid.html', {
-            'message': f"Fichier '{plasmid_file.name}' traité avec succès",
-            'linear_map': linear_url,
-            'circular_map': circular_url
-        })
+            # Message de succès
+            msg = f"Fichier '{plasmid_file.name}' traité avec succès."
+            if plasmide.dossier == "public":
+                msg += " Il est maintenant public."
+            messages.success(request, msg)
 
-    # Si GET : juste la page d’upload
+            # Redirection vers la page de visualisation des cartes
+            return redirect('templates:plasmid_detail', plasmid_id=plasmide.id)
+
+        except Exception as e:
+            messages.error(request, f"Erreur lors du traitement du plasmide : {e}")
+            return redirect('templates:view_plasmid')
+
+    # GET : page d’upload
     return render(request, 'gestionTemplates/view_plasmid.html')
+
+def plasmid_detail(request, plasmid_id):
+    plasmide = get_object_or_404(Plasmide, id=plasmid_id)
+    file_path = os.path.join(settings.MEDIA_ROOT, "temp_uploads/genbank_files", f"{plasmide.name}.gb")
+
+    # Génération des cartes
+    linear_url, circular_url = generate_plasmid_maps(file_path)
+
+    return render(request, 'gestionTemplates/plasmid_detail.html', {
+        'plasmide': plasmide,
+        'linear_map': linear_url,
+        'circular_map': circular_url
+    })
 
 def user_view_plasmid(request, campaign_id):
     campaign = get_object_or_404(Campaign, id=campaign_id)
@@ -1000,4 +1022,3 @@ def download_plasmid(request):
 
     else:
         raise Http404("Paramètres manquants pour le téléchargement.")
-    

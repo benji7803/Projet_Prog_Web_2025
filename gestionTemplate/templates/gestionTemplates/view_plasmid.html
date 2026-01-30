@@ -1,53 +1,83 @@
 {% extends 'layout.html' %}
 
 {% block title %}
-    Visualiser Plasmide 
+Visualiser Plasmide
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1>Visualiser le plasmide</h1>
-    <p>Cette page vous permet, depuis un fichier GenBank (.gb), d'obtenir les cartes d'un plasmide spécifique.</p>
+<main class="container">
+    <div class="page-header">
+        <h1>Visualiser le plasmide</h1>
+    </div>
 
-    {% if error %}
-        <div class="alert alert-danger mt-3">{{ error }}</div>
-    {% endif %}
-    {% if message %}
-        <div class="alert alert-success mt-3">{{ message }}</div>
-    {% endif %}
-
-    <form method="post" enctype="multipart/form-data" action="{% url 'templates:view_plasmid' %}">
-        {% csrf_token %}
-        <div class="mb-3 mt-3">
-            <label for="plasmid_file" class="form-label">Choisissez un fichier .gb :</label>
-            <input type="file" name="plasmid_file" id="plasmid_file" class="form-control" accept=".gb" required>
+    <!-- Messages flash -->
+    {% if messages %}
+        <div class="mt-3">
+            {% for message in messages %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
         </div>
-        <button type="submit" class="btn btn-primary">Uploader</button>
-    </form>
+    {% endif %}
+
+    <!-- Upload Card -->
+    <div class="collapse-container mt-3">
+        <div class="collapse-header">
+            <h3>Uploader un fichier GenBank (.gb)</h3>
+        </div>
+        <div class="collapse-body">
+            <form method="post" enctype="multipart/form-data" action="{% url 'templates:view_plasmid' %}">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="plasmid_file">Choisissez un fichier .gb :</label>
+                    <input type="file" name="plasmid_file" id="plasmid_file" accept=".gb" required>
+                </div>
+
+                <div id="privacy-form">
+                    <input type="checkbox" name="is_public" id="is_public">
+                    <label for="is_public">Rendre ce plasmide public</label>
+                </div>
+
+                <button type="submit" class="btn mt-3">Uploader</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Bouton Chercher un plasmide -->
+    <div class="text-center mt-4">
+        <a href="{% url 'templates:search_templates' %}" class="btn btn-primary">Chercher un plasmide</a>
+    </div>
 
     {% if linear_map or circular_map %}
-        <hr class="my-4">
-        <h3>Cartes générées :</h3>
+        <div class="simulations-section mt-4">
+            <h2>Cartes générées</h2>
 
-        {% if linear_map %}
-            <div class="mt-3 text-center">
-                <h5>Carte linéaire</h5>
-                <img src="{{ linear_map }}" alt="Carte linéaire" class="img-fluid rounded shadow" style="max-width:100%; height:auto;">
-                <div class="mt-2">
-                    <a href="{{ linear_map }}" download class="btn btn-sm btn-outline-primary">Télécharger la carte linéaire</a>
+            {% if linear_map %}
+                <div class="simulation-list mt-3 text-center">
+                    <h5>Carte linéaire</h5>
+                    <div class="card shadow-sm mt-2 p-2 d-inline-block">
+                        <img src="{{ linear_map }}" alt="Carte linéaire" class="img-fluid rounded">
+                    </div>
+                    <a href="{{ linear_map }}" download class="btn btn-sm btn-outline-primary mt-2">Télécharger la carte linéaire</a>
                 </div>
-            </div>
-        {% endif %}
+            {% endif %}
 
-        {% if circular_map %}
+            {% if circular_map %}
+                <div class="simulation-list mt-4 text-center">
+                    <h5>Carte circulaire</h5>
+                    <div class="card shadow-sm mt-2 p-2 d-inline-block">
+                        <img src="{{ circular_map }}" alt="Carte circulaire" class="img-fluid rounded" style="max-width: 50%;">
+                    </div>
+                    <a href="{{ circular_map }}" download class="btn btn-sm btn-outline-primary mt-2">Télécharger la carte circulaire</a>
+                </div>
+            {% endif %}
+
+            <!-- Bouton retour -->
             <div class="mt-4 text-center">
-                <h5>Carte circulaire</h5>
-                <img src="{{ circular_map }}" alt="Carte circulaire" class="img-fluid rounded shadow" style="max-width:50%; height:auto;">
-                <div class="mt-2">
-                    <a href="{{ circular_map }}" download class="btn btn-sm btn-outline-primary">Télécharger la carte circulaire</a>
-                </div>
+                <a href="{% url 'templates:view_plasmid' %}" class="btn btn-secondary">Retour</a>
             </div>
-        {% endif %}
+        </div>
     {% endif %}
-</div>
+</main>
 {% endblock %}

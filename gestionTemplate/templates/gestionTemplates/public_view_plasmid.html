@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<main class="plasmid-view">
+    <h2 class="mb-3">Visualisation du plasmide public : {{ plasmid.name }}</h2>
+
+    <p><strong>Organisme :</strong> {{ plasmid.organism|default:"-" }}</p>
+    <p><strong>Longueur :</strong> {{ plasmid.length|default:"-" }} bp</p>
+
+    {% if linear_map and circular_map %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div class="map-card p-3 border rounded">
+                <h4 class="mb-2">Carte linéaire</h4>
+                <img src="{{ linear_map }}" alt="Carte linéaire" style="max-width:100%; height:auto;">
+            </div>
+            <div class="map-card p-3 border rounded">
+                <h4 class="mb-2">Carte circulaire</h4>
+                <img src="{{ circular_map }}" alt="Carte circulaire" style="max-width:100%; height:auto;">
+            </div>
+        </div>
+    {% else %}
+        <p class="mt-4 text-gray-600">Aucune carte disponible pour ce plasmide.</p>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="?privacy=public" class="btn btn-secondary">Retour à la banque publique</a>
+    </div>
+</main>
+{% endblock %}

@@ -91,4 +91,38 @@
     <p>Aucun fichier de correspondance créé pour le moment.</p>
 {% endif %}
 
+<hr>
+
+<h2>Mes Templates Publiés</h2>
+
+{% if published_templates %}
+    <div class="published-templates">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom du Template</th>
+                    <th>Description</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in published_templates %}
+                <tr>
+                    <td><strong>{{ t.name }}</strong></td>
+                    <td>{{ t.description|truncatewords:10 }}</td>
+                    <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        <a href="{% url 'templates:download_template' t.id %}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
+                        <a href="{% url 'templates:dashboard' %}?highlight={{ t.id }}" class="btn btn-sm btn-secondary" title="Voir sur le dashboard">🔎</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <p>Aucun template publié pour le moment.</p>
+{% endif %}
+
 {% endblock %}

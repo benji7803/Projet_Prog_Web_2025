@@ -37,16 +37,18 @@ def logout_view(request):
     return redirect("templates:dashboard")
 
 def user_profile(request):
-    from gestionTemplate.models import PlasmidCollection, MappingTemplate
+    from gestionTemplate.models import PlasmidCollection, MappingTemplate, CampaignTemplate
     
     teams = request.user.equipes_membres.all()
     plasmid_collections = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
     mapping_templates = MappingTemplate.objects.filter(user=request.user).order_by('-created_at')
+    published_templates = CampaignTemplate.objects.filter(user=request.user, isPublic=True).order_by('-created_at')
     
     return render(request, 'users/profile.html', {
         'teams': teams,
         'plasmid_collections': plasmid_collections,
         'mapping_templates': mapping_templates,
+        'published_templates': published_templates,
     })
 
 #Gestion d'équipe --------------------------------------------------------------

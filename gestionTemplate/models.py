@@ -24,6 +24,8 @@ class CampaignTemplate(models.Model):
     )
     separator_sortie = models.CharField(max_length=10, default='-')
     isPublic = models.BooleanField(default=False)
+    # Fichier template associé (optionnel) — sera utilisé pour les templates publiés
+    template_file = models.FileField(upload_to='simulations/templates/', null=True, blank=True)
 
     def __str__(self):
         return self.name

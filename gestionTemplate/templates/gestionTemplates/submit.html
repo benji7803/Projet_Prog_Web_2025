@@ -27,8 +27,20 @@
                     <input type="file" id="file-upload" name="uploaded_file" class="form-control form-control-lg" accept=".xlsx" required>
                     <small class="text-muted d-block mt-2">Sélectionnez votre fichier de configuration</small>
                 </div>
+
+                {% if user.is_authenticated %}
+                <div class="mb-3 form-check">
+                    <input type="checkbox" id="publish-template" name="publish_template" class="form-check-input">
+                    <label for="publish-template" class="form-check-label fw-bold">Rendre public</label>
+                </div>
+                <div class="mb-3">
+                    <label for="publish-name" class="form-label small">Nom public (optionnel)</label>
+                    <input type="text" id="publish-name" name="publish_name" class="form-control" placeholder="Nom du template public (optionnel)">
+                </div>
+                {% endif %}
+
                 <button type="submit" class="btn btn-primary btn-lg">
-                    ✓ Vérifier le fichier
+                    Publier ce template
                 </button>
             </form>
         </div>
@@ -63,7 +75,7 @@
                                         <small class="text-muted d-block mt-2">Archive contenant vos fichiers GenBank (.gb)</small>
                                     </div>
                                     <button type="submit" name="save_collection" value="1" class="btn btn-success w-100">
-                                        Sauvegarder cette collection
+                                        Publier cette collection
                                     </button>
                                 </form>
                             </div>
@@ -105,6 +117,19 @@
                         <input type="file" id="plasmid-archive-direct" name="plasmid_archive" class="form-control form-control-lg" accept=".zip,.tar,.tar.gz">
                         <small class="text-muted d-block mt-2">Archive contenant vos fichiers GenBank (.gb)</small>
                     </div>
+
+                    {% if user.is_authenticated %}
+                    <div class="mb-3">
+                        <label for="collection-name-direct" class="form-label fw-bold">Nom de la collection (si vous souhaitez sauvegarder)</label>
+                        <input type="text" id="collection-name-direct" name="collection_name" class="form-control" placeholder="Ex: Ma nouvelle collection">
+                    </div>
+                    <div class="mb-3">
+                        <label for="collection-desc-direct" class="form-label">Description (optionnel)</label>
+                        <textarea id="collection-desc-direct" name="collection_description" class="form-control" rows="2" placeholder="Description..."></textarea>
+                    </div>
+                    <button type="submit" name="save_collection" value="1" class="btn btn-outline-success me-2">💾 Sauvegarder la collection</button>
+                    {% endif %}
+
                     <button type="submit" class="btn btn-success btn-lg">
                         Vérifier l'archive
                     </button>
@@ -159,7 +184,7 @@
                                     <small class="text-muted d-block mt-2">Fichier CSV ou Excel contenant les correspondances</small>
                                 </div>
                                 <button type="submit" name="save_mapping" value="1" class="btn btn-info text-white w-100">
-                                    Sauvegarder ce fichier
+                                    Publier ce fichier de correspondance
                                 </button>
                             </form>
                         </div>
@@ -250,6 +275,18 @@
                     <label for="file-upload" class="form-label">Fichier Excel (.xlsx)</label>
                     <input type="file" id="file-upload" name="uploaded_file" class="form-control" accept=".xlsx" required>
                 </div>
+
+                {% if user.is_authenticated %}
+                <div class="mb-3 form-check">
+                    <input type="checkbox" id="publish-template" name="publish_template" class="form-check-input">
+                    <label for="publish-template" class="form-check-label">Rendre public</label>
+                </div>
+                <div class="mb-3">
+                    <label for="publish-name" class="form-label small">Nom public (optionnel)</label>
+                    <input type="text" id="publish-name" name="publish_name" class="form-control" placeholder="Nom du template public (optionnel)">
+                </div>
+                {% endif %}
+
                 <button type="submit" class="btn btn-success">Vérifier le fichier</button>
             </form>
         </div>
@@ -398,6 +435,19 @@
                             <input type="file" id="plasmid-archive" name="plasmid_archive" class="form-control" accept=".zip,.tar,.tar.gz">
                             <small class="text-muted">Uploader tous vos plasmides au format GenBank (.gb)</small>
                         </div>
+
+                        {% if user.is_authenticated %}
+                        <div class="mb-3">
+                            <label for="collection-name" class="form-label">Nom de la collection (si vous souhaitez sauvegarder)</label>
+                            <input type="text" id="collection-name" name="collection_name" class="form-control" placeholder="Ex: Ma collection">
+                        </div>
+                        <div class="mb-3">
+                            <label for="collection-desc" class="form-label">Description (optionnel)</label>
+                            <textarea id="collection-desc" name="collection_description" class="form-control" rows="2" placeholder="Description..."></textarea>
+                        </div>
+                        <button type="submit" name="save_collection" value="1" class="btn btn-outline-success me-2">💾 Sauvegarder la collection</button>
+                        {% endif %}
+
                         <button type="submit" class="btn btn-success">Vérifier l'archive</button>
                     </form>
                 </div>

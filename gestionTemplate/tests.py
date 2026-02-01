@@ -122,3 +122,108 @@ class SimulationSimpleTest(TestCase):
         self.assertIsNone(call_kwargs['concentration_file']) # Doit être None car pas envoyé
         self.assertIsNone(call_kwargs['enzyme_names'])       # Doit être None car vide
         self.assertEqual(call_kwargs['default_mass_concentration'], 200.0) # Valeur par défaut
+
+
+class PublishTemplateTest(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(username='bob', email='bob@example.com', password='testpass')
+        self.client = Client()
+
+    def test_publish_from_submit_creates_public_template(self):
+        self.client.force_login(self.user)
+
+        # Préparer les fichiers (template excel, mapping csv, zip avec un .gb)
+        template_file = SimpleUploadedFile(
+            "template.xlsx",
+            b"Fake Excel Content",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        mapping_file = SimpleUploadedFile(
+            "mapping.csv",
+            b"pID;Name\np001;PromoterX",
+            content_type="text/csv"
+        )
+
+        import io
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr('plasmid_1.gb', 'LOCUS       plasmid_1...')
+        zip_file = SimpleUploadedFile("plasmids.zip", zip_buffer.getvalue(), content_type="application/zip")
+
+        data = {
+            'template_file': template_file,
+            'mapping_file': mapping_file,
+            'plasmids_zip': zip_file,
+            'publish_template': 'on',
+            'publish_name': 'Template Publié Test'
+        }
+
+        # On poste sur la page submit en uploadant aussi le fichier Excel (champ 'uploaded_file')
+        post_data = {
+            'publish_template': 'on',
+            'publish_name': 'Template Publié Test'
+        }
+        files = {
+            'uploaded_file': template_file,
+            'mapping_file': mapping_file,
+            'plasmids_zip': zip_file,
+        }
+
+        resp = self.client.post(reverse('templates:submit'), data=post_data, files=files)
+        self.assertEqual(resp.status_code, 200)
+
+        public = CampaignTemplate.objects.filter(name='Template Publié Test', isPublic=True, user=self.user).first()
+        self.assertIsNotNone(public, "Le template public n'a pas été créé depuis le submit")
+        self.assertEqual(public.user, self.user, "Le template publié devrait appartenir à l'utilisateur")
+
+
+class SaveCollectionFromSubmitTest(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(username='alice', email='alice@example.com', password='testpass')
+        self.client = Client()
+
+    def test_save_collection_from_submit(self):
+        self.client.force_login(self.user)
+
+        # create a zip with a fake .gb
+        import io
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr('p1.gb', 'LOCUS       p1...\nORIGIN\nactgactg//')
+        zip_file = SimpleUploadedFile('plasmids.zip', zip_buffer.getvalue(), content_type='application/zip')
+
+        post_data = {'save_collection': '1', 'collection_name': 'CollecTest', 'collection_description': 'desc'}
+        files = {'plasmid_archive': zip_file}
+
+        resp = self.client.post(reverse('templates:submit'), data=post_data, files=files)
+        self.assertEqual(resp.status_code, 200)
+
+        coll = PlasmidCollection.objects.filter(name='CollecTest', user=self.user).first()
+        self.assertIsNotNone(coll, 'Collection non créée')
+        self.assertGreaterEqual(coll.plasmides.count(), 1, 'Les plasmides n\'ont pas été importés')
+
+
+class SaveMappingFromSubmitTest(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.user = User.objects.create_user(username='charlie', email='charlie@example.com', password='testpass')
+        self.client = Client()
+
+    def test_save_mapping_from_submit(self):
+        self.client.force_login(self.user)
+
+        mapping_file = SimpleUploadedFile('map.csv', b'pID;Name\np1;X', content_type='text/csv')
+        post_data = {'save_mapping': '1', 'mapping_name': 'MapTest', 'mapping_description': 'desc'}
+        files = {'mapping_file_upload': mapping_file}
+
+        resp = self.client.post(reverse('templates:submit'), data=post_data, files=files)
+        self.assertEqual(resp.status_code, 200)
+
+        mt = MappingTemplate.objects.filter(name='MapTest', user=self.user).first()
+        self.assertIsNotNone(mt, 'Mapping non créé')

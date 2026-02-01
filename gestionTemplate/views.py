@@ -139,14 +139,12 @@ def download_template(request, template_id):
         default_separator=template.separator_sortie,
         enzyme=template.restriction_enzyme,
         name=template.name,
-        default_plasmid=["pID001"]  # Tu peux paramétrer ça aussi
+        default_plasmid=["pID001"]
     )
     
     # Envoyer le fichier au client
     response = FileResponse(open(output_path, 'rb'), as_attachment=True, filename=f"{template.name}.xlsx")
-    
-    # Nettoyage après envoi (optionnel)
-    # Note: le fichier sera supprimé après, à gérer avec une tâche async si besoin
+
     return response
 
 
@@ -168,7 +166,8 @@ def submit(request):
         if 'save_collection' in request.POST and request.user.is_authenticated:
             collection_name = request.POST.get('collection_name', '').strip()
             collection_desc = request.POST.get('collection_description', '').strip()
-            plasmid_archive = request.FILES.get('collection_plasmid_archive')
+            # accept different input names for the uploaded archive
+            plasmid_archive = request.FILES.get('collection_plasmid_archive') or request.FILES.get('plasmid_archive') or request.FILES.get('plasmid-archive') or request.FILES.get('plasmid-archive-direct')
             
             if collection_name and plasmid_archive:
                 try:
@@ -199,6 +198,10 @@ def submit(request):
                                 )
                                 # Lier le plasmide à la collection
                                 collection.plasmides.add(plasmide)
+                                # Lier l'utilisateur au plasmide
+                                if request.user.is_authenticated:
+                                    plasmide.user = request.user
+                                    plasmide.save()
                             except Exception as e:
                                 print(f"Erreur parsing {gb_file.name}: {str(e)}")
                     
@@ -248,6 +251,21 @@ def submit(request):
                 # Stockage en session
                 request.session['inputs_name'] = inputs_name
                 request.session['data_html'] = data_html
+
+                # Publication optionnelle depuis l'écran de vérification
+                if request.POST.get('publish_template') == 'on' and request.user.is_authenticated:
+                    publish_name = request.POST.get('publish_name') or os.path.splitext(uploaded_file.name)[0]
+                    try:
+                        pub = CampaignTemplate.objects.create(
+                            name=publish_name,
+                            description=f"Publié depuis la page Soumettre par {request.user.username}",
+                            isPublic=True,
+                            user=request.user
+                        )
+                        message = f"✅ Template '{publish_name}' publié avec succès !"
+                    except Exception as e:
+                        message = f"Erreur publication : {e}"
+
             except Exception as e:
                 message = f"Erreur Excel : {e}"
 
@@ -381,7 +399,51 @@ def simulate(request):
                     campaign_instance.options = options_dict
                     
                     campaign_instance.save() # On sauvegarde pour obtenir un ID
-                    
+
+                    # D. Publication optionnelle (via le formulaire submit)
+                    try:
+                        if request.POST.get('publish_template') == 'on' and request.user.is_authenticated:
+                            publish_name = request.POST.get('publish_name') or f"Template_{uuid.uuid4().hex[:6]}"
+
+                            # Cas : on a choisi un template existant -> cloner les colonnes
+                            if template_file_source == 'existing':
+                                old_columns = list(template_obj.columns.all())
+                                public = CampaignTemplate(
+                                    name=publish_name,
+                                    description=template_obj.description,
+                                    restriction_enzyme=template_obj.restriction_enzyme,
+                                    separator_sortie=template_obj.separator_sortie,
+                                    isPublic=True,
+                                    user=request.user,
+                                )
+                                public.template_file = template_obj.template_file
+                                public.save()
+
+                                for col in old_columns:
+                                    col.pk = None
+                                    col.id = None
+                                    col.template = public
+                                    col.save()
+
+                            else:
+                                # Cas : upload direct -> créer un template public lié au même fichier
+                                public = CampaignTemplate(
+                                    name=publish_name,
+                                    description='Publié via Submit',
+                                    isPublic=True,
+                                    user=None,
+                                )
+                                public.template_file = campaign_instance.template_file
+                                # si l'enzyme a été fournie, on la copie
+                                if campaign_instance.enzyme:
+                                    public.restriction_enzyme = campaign_instance.enzyme
+                                public.save()
+
+                            messages.success(request, f"Template '{public.name}' publié avec succès.")
+                    except Exception as e:
+                        # Ne pas interrompre la simulation si la publication échoue
+                        print(f"Erreur publication template: {e}")
+
                     # B. Gestion des plasmides
                     if plasmids_source == 'upload':
                         # Gestion MANUELLE de l'archive ZIP sur le disque
@@ -862,21 +924,41 @@ def import_public_templates(request, template_id):
 
     return render(request, 'gestionTemplates/dashboard.html', context)
 
+from django.contrib import messages
+from django.shortcuts import redirect
+
+
 def publier_template(request, template_id):
+    # Only accept POST to mutate data
+    if request.method != 'POST':
+        return redirect('templates:dashboard')
 
-    original = get_object_or_404(CampaignTemplate, id=template_id)
+    # Ensure the user owns the template
+    original = get_object_or_404(CampaignTemplate, id=template_id, user=request.user)
 
-    original.isPublic = True
+    # Create a public copy so the user's private template remains unchanged
+    old_columns = list(original.columns.all())
 
-    original.save()
+    public = CampaignTemplate()
+    public.id = None
+    public.pk = None
+    public.name = original.name
+    public.description = original.description
+    public.restriction_enzyme = original.restriction_enzyme
+    public.separator_sortie = original.separator_sortie
+    public.isPublic = True
+    public.user = None
+    public.team = None
+    public.save()
 
-    liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+    for col in old_columns:
+        col.pk = None
+        col.id = None
+        col.template = public
+        col.save()
 
-    context = {
-        'liste_templates': liste_templates,
-    }
-
-    return render(request, 'gestionTemplates/dashboard.html', context)
+    messages.success(request, f"Template '{original.name}' publié avec succès.")
+    return redirect('templates:dashboard')
 
 def user_view_plasmid_archive(request, campaign_id):
     campaign = get_object_or_404(Campaign, id=campaign_id)

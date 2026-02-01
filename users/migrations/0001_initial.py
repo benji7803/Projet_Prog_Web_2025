@@ -193,26 +193,60 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.AddField(
-            model_name='equipe',
-            name='membres',
-            field=models.ManyToManyField(related_name='equipes_membres', through='users.MembreEquipe', to=settings.AUTH_USER_MODEL),
+            model_name="equipe",
+            name="membres",
+            field=models.ManyToManyField(
+                related_name="equipes_membres",
+                through="users.MembreEquipe",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.CreateModel(
-            name='Seqcollection',
+            name="Seqcollection",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=150, verbose_name='seq name')),
-                ('fichier', models.FileField(upload_to='equipes/docs/')),
-                ('equipe', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='seqcol', to='users.equipe')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=150, verbose_name="seq name")),
+                ("fichier", models.FileField(upload_to="equipes/docs/")),
+                (
+                    "equipe",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="seqcol",
+                        to="users.equipe",
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Tablecor',
+            name="Tablecor",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=150, verbose_name='table name')),
-                ('fichier', models.FileField(upload_to='equipes/docs/')),
-                ('equipe', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='tablecor', to='users.equipe')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=150, verbose_name="table name")),
+                ("fichier", models.FileField(upload_to="equipes/docs/")),
+                (
+                    "equipe",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="tablecor",
+                        to="users.equipe",
+                    ),
+                ),
             ],
         ),
     ]

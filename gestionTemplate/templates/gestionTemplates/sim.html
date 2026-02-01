@@ -22,28 +22,74 @@
             <form id="simulation-form" method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 
+                <!-- Champs cachés pour les sélections existantes -->
+                <input type="hidden" id="template_existing" name="template_existing" value="">
+                <input type="hidden" id="plasmid_collection_id" name="plasmid_collection_id" value="">
+                <input type="hidden" id="mapping_template_id" name="mapping_template_id" value="">
+                
                 <!-- Fichiers requis -->
-                <h4 class="text-secondary border-bottom pb-2 mb-3">1. Fichiers requis</h4>
+                <h4 class="text-secondary border-bottom pb-2 mb-3">1. Fichier Template Principal</h4>
                 <div class="row mb-4">
-                    <div class="col-md-12 mb-3">
-                        {{ form.template_file.label_tag }}
+                    <div class="col-md-6">
                         {{ form.template_file }}
                         <small class="text-danger d-block">{{ form.template_file.errors }}</small>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        {{ form.plasmids_zip.label_tag }}
+                    {% if user.is_authenticated and existing_templates %}
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">📁 Utiliser un fichier existant</label>
+                        <select id="template_select" class="form-select" onchange="selectTemplate(this.value)">
+                            <option value="">-- Aucun --</option>
+                            {% for template in existing_templates %}
+                                <option value="{{ template.id }}" data-name="{{ template.name }}" data-date="{{ template.created_at|date:'d/m/Y H:i' }}">
+                                    {{ template.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <h4 class="text-secondary border-bottom pb-2 mb-3 mt-4">2. Archive de Plasmides</h4>
+                <div class="row mb-4">
+                    <div class="col-md-6">
                         {{ form.plasmids_zip }}
                         <small class="text-muted d-block">{{ form.plasmids_zip.help_text }}</small>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        {{ form.mapping_file.label_tag }}
+                    {% if user.is_authenticated and plasmid_collections %}
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Utiliser une collection publié</label>
+                        <select id="plasmids_select" class="form-select" onchange="selectCollection(this.value)">
+                            <option value="">-- Aucune --</option>
+                            {% for collection in plasmid_collections %}
+                                <option value="{{ collection.id }}" data-name="{{ collection.name }}" data-count="{{ collection.plasmides.count }}">
+                                    {{ collection.name }} ({{ collection.plasmides.count }} plasmide(s))
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <h4 class="text-secondary border-bottom pb-2 mb-3 mt-4">3. Fichier de Correspondance</h4>
+                <div class="row mb-4">
+                    <div class="col-md-6">
                         {{ form.mapping_file }}
                         <small class="text-muted d-block">{{ form.mapping_file.help_text }}</small>
                     </div>
+                    {% if user.is_authenticated and mapping_templates %}
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Utiliser un fichier publié</label>
+                        <select id="mapping_select" class="form-select" onchange="selectMapping(this.value)">
+                            <option value="">-- Aucun --</option>
+                            {% for template in mapping_templates %}
+                                <option value="{{ template.id }}" data-name="{{ template.name }}" data-date="{{ template.created_at|date:'d/m/Y H:i' }}">
+                                    {{ template.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
                 </div>
-
-                <!-- Paramètres optionnels -->
-                <h4 class="text-secondary border-bottom pb-2 mb-3 mt-4">2. Paramètres optionnels</h4>
                 <div class="row">
                     <div class="col-md-5 mb-4">
                         <div class="card bg-light border-0 h-100 shadow-sm">
@@ -94,12 +140,93 @@
 
             <!-- Script de téléchargement et redirection -->
             <script>
+            function selectTemplate(templateId) {
+                if (templateId) {
+                    document.getElementById('template_existing').value = templateId;
+                    document.getElementById('template_file').value = '';
+                } else {
+                    document.getElementById('template_existing').value = '';
+                }
+            }
+
+            function selectCollection(collectionId) {
+                if (collectionId) {
+                    document.getElementById('plasmid_collection_id').value = collectionId;
+                    document.getElementById('plasmids_zip').value = '';
+                } else {
+                    document.getElementById('plasmid_collection_id').value = '';
+                }
+            }
+
+            function selectMapping(mappingId) {
+                if (mappingId) {
+                    document.getElementById('mapping_template_id').value = mappingId;
+                    document.getElementById('mapping_file').value = '';
+                } else {
+                    document.getElementById('mapping_template_id').value = '';
+                }
+            }
+
+            // Réinitialiser les sélections quand on upload un fichier
             document.addEventListener('DOMContentLoaded', function() {
+                const templateFile = document.getElementById('template_file');
+                const plasmidsZip = document.getElementById('plasmids_zip');
+                const mappingFile = document.getElementById('mapping_file');
+                const templateSelect = document.getElementById('template_select');
+                const plasmidsSelect = document.getElementById('plasmids_select');
+                const mappingSelect = document.getElementById('mapping_select');
+
+                if (templateFile) {
+                    templateFile.addEventListener('change', function() {
+                        if (this.files.length > 0) {
+                            document.getElementById('template_existing').value = '';
+                            if (templateSelect) templateSelect.value = '';
+                        }
+                    });
+                }
+
+                if (plasmidsZip) {
+                    plasmidsZip.addEventListener('change', function() {
+                        if (this.files.length > 0) {
+                            document.getElementById('plasmid_collection_id').value = '';
+                            if (plasmidsSelect) plasmidsSelect.value = '';
+                        }
+                    });
+                }
+
+                if (mappingFile) {
+                    mappingFile.addEventListener('change', function() {
+                        if (this.files.length > 0) {
+                            document.getElementById('mapping_template_id').value = '';
+                            if (mappingSelect) mappingSelect.value = '';
+                        }
+                    });
+                }
+
                 const form = document.getElementById('simulation-form');
                 const simulateBtn = document.getElementById('simulate-btn');
 
                 form.addEventListener('submit', function(event) {
                     event.preventDefault();
+                    
+                    const templateExisting = document.getElementById('template_existing').value;
+                    const collectionId = document.getElementById('plasmid_collection_id').value;
+                    const mappingId = document.getElementById('mapping_template_id').value;
+
+                    // Validation de base
+                    if (!templateExisting && !templateFile.value) {
+                        alert('Veuillez sélectionner ou uploader un fichier de template');
+                        return;
+                    }
+                    if (!collectionId && !plasmidsZip.value) {
+                        alert('Veuillez sélectionner ou uploader une archive de plasmides');
+                        return;
+                    }
+                    if (!mappingId && !mappingFile.value) {
+                        alert('Veuillez sélectionner ou uploader un fichier de correspondance');
+                        return;
+                    }
+
                     const formData = new FormData(form);
 
                     simulateBtn.disabled = true;

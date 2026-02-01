@@ -300,6 +300,43 @@ def simulate(request):
                 campaign_instance = None
                 
                 # =========================================================
+                # Vérifier les sources de fichiers (upload vs existants)
+                # =========================================================
+                template_file_source = None  # 'upload' ou 'existing'
+                plasmids_source = None      # 'upload' ou 'collection'
+                mapping_source = None       # 'upload' ou 'template'
+                
+                # Déterminer la source du template
+                template_existing_id = form.cleaned_data.get('template_existing')
+                if template_existing_id:
+                    template_file_source = 'existing'
+                    template_obj = get_object_or_404(CampaignTemplate, id=template_existing_id, user=request.user)
+                elif request.FILES.get('template_file'):
+                    template_file_source = 'upload'
+                else:
+                    raise ValueError("Aucun fichier template fourni")
+                
+                # Déterminer la source des plasmides
+                collection_id = form.cleaned_data.get('plasmid_collection_id')
+                if collection_id:
+                    plasmids_source = 'collection'
+                    collection_obj = get_object_or_404(PlasmidCollection, id=collection_id, user=request.user)
+                elif request.FILES.get('plasmids_zip'):
+                    plasmids_source = 'upload'
+                else:
+                    raise ValueError("Aucune archive de plasmides fournie")
+                
+                # Déterminer la source du mapping
+                mapping_id = form.cleaned_data.get('mapping_template_id')
+                if mapping_id:
+                    mapping_source = 'template'
+                    mapping_obj = get_object_or_404(MappingTemplate, id=mapping_id, user=request.user)
+                elif request.FILES.get('mapping_file'):
+                    mapping_source = 'upload'
+                else:
+                    raise ValueError("Aucun fichier de correspondance fourni")
+                
+                # =========================================================
                 # CAS 1 : UTILISATEUR CONNECTÉ (Sauvegarde en BDD)
                 # =========================================================
                 if request.user.is_authenticated:
@@ -308,14 +345,27 @@ def simulate(request):
                         user=request.user,
                         name=f"sim_{unique_id[:8]}", 
                         status=Campaign.STATUS_RUNNING,
-                        template_file=request.FILES['template_file'],
-                        mapping_file=request.FILES['mapping_file'],
-                        plasmid_archive=request.FILES['plasmids_zip'], # Attention au nom du champ form vs model
                         
                         # Options simples
                         enzyme=form.cleaned_data.get('enzyme'),
                         default_concentration=form.cleaned_data.get('default_concentration') or 200.0,
                     )
+                    
+                    # Définir les fichiers selon la source
+                    if template_file_source == 'upload':
+                        campaign_instance.template_file = request.FILES['template_file']
+                    else:
+                        campaign_instance.template_file = template_obj.template_file
+                    
+                    if mapping_source == 'upload':
+                        campaign_instance.mapping_file = request.FILES['mapping_file']
+                    else:
+                        campaign_instance.mapping_file = mapping_obj.mapping_file
+                    
+                    if plasmids_source == 'upload':
+                        campaign_instance.plasmid_archive = request.FILES['plasmids_zip']
+                    else:
+                        campaign_instance.plasmid_collection = collection_obj
 
                     # Gestion des fichiers optionnels
                     if form.cleaned_data.get('primers_file'):
@@ -332,55 +382,58 @@ def simulate(request):
                     
                     campaign_instance.save() # On sauvegarde pour obtenir un ID
                     
-                    # B. Gestion MANUELLE de l'archive ZIP sur le disque
-                    uploaded_zip = request.FILES['plasmids_zip']
-                    zip_path_on_disk = SANDBOX_DIR / "temp_plasmids.zip"
-                    
-                    with open(zip_path_on_disk, 'wb+') as destination:
-                        for chunk in uploaded_zip.chunks():
-                            destination.write(chunk)
-
-                    # C. Extraction de l'archive
-                    with zipfile.ZipFile(zip_path_on_disk, 'r') as zip_ref:
-                        zip_ref.extractall(PLASMIDS_DIR)
-                    
-                    # D. Parsing et Création des objets Plasmide en BDD
-                    # On parcourt tous les dossiers extraits pour trouver les .gb
-                    for root, dirs, files in os.walk(PLASMIDS_DIR):
+                    # B. Gestion des plasmides
+                    if plasmids_source == 'upload':
+                        # Gestion MANUELLE de l'archive ZIP sur le disque
+                        uploaded_zip = request.FILES['plasmids_zip']
+                        zip_path_on_disk = SANDBOX_DIR / "temp_plasmids.zip"
                         
-                        # --- AJOUT : Calcul du nom du dossier ---
-                        # On regarde le chemin relatif par rapport au dossier d'extraction
-                        # Ex: si root est ".../plasmids/Niveau1/Promoteurs", rel_path sera "Niveau1/Promoteurs"
-                        rel_path = os.path.relpath(root, PLASMIDS_DIR)
-                        
-                        # Si le fichier est à la racine, rel_path vaut "." -> on met None ou ""
-                        current_dossier = rel_path if rel_path != "." else None
-                        # ----------------------------------------
+                        with open(zip_path_on_disk, 'wb+') as destination:
+                            for chunk in uploaded_zip.chunks():
+                                destination.write(chunk)
 
-                        for file in files:
-                            if file.lower().endswith('.gb') or file.lower().endswith('.gbk'):
-                                full_file_path = os.path.join(root, file)
-                                try:
-                                    # --- MODIFICATION : On passe le dossier ---
-                                    new_plasmid = Plasmide.create_from_genbank(
-                                        full_file_path, 
-                                        dossier_nom=current_dossier
-                                    )
-                                    
-                                    new_plasmid.user = request.user
-                                    new_plasmid.save()
-                                    
-                                    campaign_instance.plasmids.add(new_plasmid)
-                                    
-                                except Exception as e:
-                                    print(f"Erreur import plasmide {file}: {e}")
+                        # Extraction de l'archive
+                        with zipfile.ZipFile(zip_path_on_disk, 'r') as zip_ref:
+                            zip_ref.extractall(PLASMIDS_DIR)
+                        
+                        # Parsing et Création des objets Plasmide en BDD
+                        # On parcourt tous les dossiers extraits pour trouver les .gb
+                        for root, dirs, files in os.walk(PLASMIDS_DIR):
+                            
+                            rel_path = os.path.relpath(root, PLASMIDS_DIR)
+                            current_dossier = rel_path if rel_path != "." else None
+
+                            for file in files:
+                                if file.lower().endswith('.gb') or file.lower().endswith('.gbk'):
+                                    full_file_path = os.path.join(root, file)
+                                    try:
+                                        new_plasmid = Plasmide.create_from_genbank(
+                                            full_file_path, 
+                                            dossier_nom=current_dossier
+                                        )
+                                        
+                                        new_plasmid.user = request.user
+                                        new_plasmid.save()
+                                        
+                                        campaign_instance.plasmids.add(new_plasmid)
+                                        
+                                    except Exception as e:
+                                        print(f"Erreur import plasmide {file}: {e}")
+                    else:
+                        # Utiliser la collection existante
+                        campaign_instance.plasmids.set(collection_obj.plasmides.all())
 
                     # E. Définition des chemins pour le simulateur
                     full_template_path = pathlib.Path(campaign_instance.template_file.path)
                     full_mapping_path = pathlib.Path(campaign_instance.mapping_file.path)
                     
                     # Extraction de l'archive stockée
-                    archive_path = pathlib.Path(campaign_instance.plasmid_archive.path)
+                    if plasmids_source == 'upload':
+                        archive_path = pathlib.Path(campaign_instance.plasmid_archive.path)
+                    else:
+                        # Utiliser l'archive de la collection
+                        archive_path = pathlib.Path(collection_obj.plasmid_archive.path)
+                    
                     with zipfile.ZipFile(archive_path, 'r') as zip_ref:
                         zip_ref.extractall(PLASMIDS_DIR)
                         
@@ -487,7 +540,9 @@ def simulate(request):
                 return render(request, template_name, {
                     'form': form,
                     'error': f"Erreur de simulation : {str(e)}",
-                    'previous_templates': Campaign.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None
+                    'existing_templates': CampaignTemplate.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None,
+                    'plasmid_collections': PlasmidCollection.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None,
+                    'mapping_templates': MappingTemplate.objects.filter(user=request.user).order_by('-created_at') if request.user.is_authenticated else None,
                 })
     else:
         form = AnonymousSimulationForm()
@@ -495,7 +550,9 @@ def simulate(request):
     context = {'form': form}
 
     if request.user.is_authenticated:
-        context['previous_templates'] = Campaign.objects.filter(user=request.user).order_by('-created_at')
+        context['existing_templates'] = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+        context['plasmid_collections'] = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
+        context['mapping_templates'] = MappingTemplate.objects.filter(user=request.user).order_by('-created_at')
 
     return render(request, template_name, context)
 

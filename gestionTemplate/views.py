@@ -8,7 +8,7 @@ from django.db import transaction
 from django.contrib.auth.decorators import login_required
 import json
 
-from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide
+from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
 from .plasmid_mapping import generate_plasmid_maps
 
@@ -639,6 +639,22 @@ def delete_campaign(request, campaign_id):
     return redirect('templates:dashboard')
 
 def view_plasmid(request):
+    # ---- Notifications des décisions de l'admin ----
+    if request.user.is_authenticated:
+        pending_notifications = PublicationRequest.objects.filter(
+            requested_by=request.user,
+            notified=False
+        ).exclude(status="pending")  # on ne prend que approved ou rejected
+
+        for req in pending_notifications:
+            if req.status == "approved":
+                messages.info(request, f"Votre demande de mise en public pour '{req.plasmid_name}' a été APPROUVÉE par l’administrateur.")
+            elif req.status == "rejected":
+                messages.warning(request, f"Votre demande de mise en public pour '{req.plasmid_name}' a été REFUSÉE par l’administrateur.")
+            req.notified = True
+            req.save()
+
+    # ---- Traitement de l'upload ----
     if request.method == 'POST':
         plasmid_file = request.FILES.get('plasmid_file')
         is_public = request.POST.get('is_public') == 'on'
@@ -656,7 +672,6 @@ def view_plasmid(request):
         upload_subdir = "temp_uploads/genbank_files"
         upload_dir = os.path.join(settings.MEDIA_ROOT, upload_subdir)
         os.makedirs(upload_dir, exist_ok=True)
-
         file_path = os.path.join(upload_dir, plasmid_file.name)
         with open(file_path, 'wb+') as destination:
             for chunk in plasmid_file.chunks():
@@ -670,12 +685,20 @@ def view_plasmid(request):
                 plasmide.save()
 
             # Génération des cartes
-            linear_url, circular_url = generate_plasmid_maps(file_path)
+            linear_map, circular_map = generate_plasmid_maps(file_path)
 
             # Message de succès
             msg = f"Fichier '{plasmid_file.name}' traité avec succès."
             if plasmide.dossier == "public":
-                msg += " Il est maintenant public."
+                # Créer une PublicationRequest si le plasmide doit être public
+                if request.user.is_authenticated:
+                    PublicationRequest.objects.create(
+                        plasmid_name=plasmide.name,
+                        requested_by=request.user,
+                        campaign=None,  # upload individuel
+                        status="pending"
+                    )
+                    msg += " Une demande de mise publique a été envoyée à l’administrateur."
             messages.success(request, msg)
 
             # Redirection vers la page de visualisation des cartes
@@ -1007,9 +1030,9 @@ def make_public(request):
         campaign_id = request.POST.get("campaign_id")
         plasmid_name = request.POST.get("plasmid_name")
 
-        campaign = get_object_or_404(Campaign, id=campaign_id, user=request.user)
+        campaign = get_object_or_404(Campaign, id=campaign_id)
 
-        # Fonction utilitaire pour traiter un fichier zip
+        # Fonction pour traiter un zip et créer le plasmide
         def process_zip(zip_path):
             try:
                 with zipfile.ZipFile(zip_path, "r") as zf:
@@ -1029,14 +1052,9 @@ def make_public(request):
             except Exception as e:
                 return None, f"Erreur lors de l'import : {e}"
 
-        record = None
-        error_msg = None
-
-        # Chercher dans l'archive
+        record, error_msg = None, None
         if campaign.plasmid_archive:
             record, error_msg = process_zip(campaign.plasmid_archive.path)
-
-        # Chercher dans le fichier result_file si pas trouvé
         if not record and campaign.result_file:
             record, error_msg = process_zip(campaign.result_file.path)
 
@@ -1044,15 +1062,8 @@ def make_public(request):
             messages.error(request, error_msg or "Plasmide non trouvé.")
             return redirect(request.META.get("HTTP_REFERER"))
 
-        # Extraire les sites
-        sites = []
-        for feat in record.features:
-            for key in ["note", "gene", "product"]:
-                if key in feat.qualifiers:
-                    sites.extend(feat.qualifiers[key])
-
-        # Créer ou mettre à jour le plasmide public
-        Plasmide.objects.update_or_create(
+        # ---- Créer ou mettre à jour le plasmide public ----
+        plasmide, created = Plasmide.objects.update_or_create(
             name=record.name,
             defaults={
                 "dossier": "public",
@@ -1063,7 +1074,18 @@ def make_public(request):
             }
         )
 
-        messages.success(request, f"Plasmide '{record.name}' rendu public avec succès !")
+        # ---- Créer une PublicationRequest si nécessaire ----
+        PublicationRequest.objects.create(
+            plasmid_name=plasmide.name,
+            requested_by=campaign.user if campaign.user else None,
+            campaign=campaign,
+            status="approved",   # puisque c’est l’admin qui valide directement
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+            notified=False       # l’utilisateur sera notifié sur view_plasmid
+        )
+
+        messages.success(request, f"Plasmide '{plasmide.name}' rendu public et PublicationRequest créée.")
         return redirect(request.META.get("HTTP_REFERER"))
 
     messages.error(request, "Action non autorisée.")
@@ -1075,11 +1097,10 @@ def make_public_bulk(request):
         return redirect("plasmid_search")
 
     campaign_id = request.POST.get("campaign_id")
-    campaign = get_object_or_404(Campaign, id=campaign_id, user=request.user)
+    campaign = get_object_or_404(Campaign, id=campaign_id)
 
-    # Fonction utilitaire pour traiter un zip et créer les plasmides publics
     def process_zip(zip_path):
-        created = 0
+        created_count = 0
         try:
             with zipfile.ZipFile(zip_path, "r") as zf:
                 for f in zf.namelist():
@@ -1089,33 +1110,41 @@ def make_public_bulk(request):
                             record = SeqIO.read(text_stream, "genbank")
 
                             if Plasmide.objects.filter(name=record.name, dossier="public").exists():
-                                continue  # éviter les doublons
+                                continue
 
-                            Plasmide.objects.create(
+                            plasmide = Plasmide.objects.create(
                                 name=record.name,
-                                description=record.annotations.get("source", ""),
                                 dossier="public",
-                                organism=record.annotations.get("organism",""),
-                                mol_type=record.annotations.get("molecule_type",""),
+                                organism=record.annotations.get("organism", ""),
                                 length=len(record.seq),
                                 sequence=str(record.seq),
-                                features={"raw":[f.qualifiers for f in record.features]},
-                                gc_content=(record.seq.count('G')+record.seq.count('C'))/len(record.seq)*100 if len(record.seq)>0 else None
+                                features={"raw": [f.qualifiers for f in record.features]}
                             )
-                            created += 1
+
+                            # ---- Création PublicationRequest ----
+                            PublicationRequest.objects.create(
+                                plasmid_name=plasmide.name,
+                                requested_by=campaign.user if campaign.user else None,
+                                campaign=campaign,
+                                status="approved",
+                                reviewed_by=request.user,
+                                reviewed_at=timezone.now(),
+                                notified=False
+                            )
+
+                            created_count += 1
         except Exception as e:
             messages.error(request, f"Erreur lors de l'import depuis {zip_path} : {e}")
-        return created
+        return created_count
 
     total_created = 0
-
     if campaign.plasmid_archive:
         total_created += process_zip(campaign.plasmid_archive.path)
     if campaign.result_file:
         total_created += process_zip(campaign.result_file.path)
 
     if total_created > 0:
-        messages.success(request, f"{total_created} plasmide(s) de la campagne ont été rendus publics !")
+        messages.success(request, f"{total_created} plasmide(s) rendus publics et PublicationRequests créées.")
     else:
         messages.info(request, "Aucun plasmide nouveau à rendre public.")
 

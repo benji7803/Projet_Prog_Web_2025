@@ -34,10 +34,14 @@ Visualiser Plasmide
                     <input type="file" name="plasmid_file" id="plasmid_file" accept=".gb" required>
                 </div>
 
-                <div id="privacy-form">
+                <div id="privacy-form" class="mt-3">
                     <input type="checkbox" name="is_public" id="is_public">
-                    <label for="is_public">Rendre ce plasmide public</label>
+                    <label for="is_public">
+                        Demander à rendre ce plasmide public
+                        <span class="text-sm text-gray-600">(soumis à validation par un administrateur)</span>
+                    </label>
                 </div>
+
 
                 <button type="submit" class="btn mt-3">Uploader</button>
             </form>

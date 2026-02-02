@@ -256,3 +256,46 @@ class Campaign(models.Model):
     def __str__(self):
         return f"{self.name} ({self.pk})"
 
+# models.py
+from django.conf import settings  # ✅ à la place de l'ancien import
+
+class PublicationRequest(models.Model):
+    campaign = models.ForeignKey("Campaign", on_delete=models.CASCADE)
+    plasmid_name = models.CharField(max_length=255)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_requests"
+    )
+
+from django.db import models
+from django.conf import settings  # ✅ pour AUTH_USER_MODEL
+
+class PublicationRequest(models.Model):
+    campaign = models.ForeignKey("Campaign", on_delete=models.CASCADE, null = True, blank = True)
+    plasmid_name = models.CharField(max_length=255)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("pending", "En attente"),
+            ("approved", "Approuvée"),
+            ("rejected", "Rejetée"),
+        ],
+        default="pending",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_requests",
+    )
+    notified = models.BooleanField(default=False)
+    def __str__(self):
+        return f"Demande de publication : {self.plasmid_name} ({self.status})"

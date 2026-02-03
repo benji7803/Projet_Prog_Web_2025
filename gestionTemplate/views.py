@@ -1,19 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, Http404
+from django.urls import reverse
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.forms import inlineformset_factory
 from django.db import transaction
-from django.contrib.auth.decorators import login_required
-import json
 
 from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm, UploadFileForm
 from .plasmid_mapping import generate_plasmid_maps
 
-from io import BytesIO
-from django.core.files.uploadedfile import InMemoryUploadedFile
+
+from Bio import SeqIO
+from io import TextIOWrapper
 import pandas as pd
 import uuid
 import os
@@ -21,8 +21,6 @@ import pathlib
 import zipfile
 import tarfile
 import shutil
-import csv
-import tempfile
 
 # insillyclo
 from insillyclo.template_generator import make_template
@@ -639,7 +637,6 @@ def simulate(request):
                         print(f"Erreur nettoyage : {e}")
 
                     # Pour l'utilisateur connecté, on redirige souvent vers le dashboard ou on renvoie le fichier stocké
-                    # Ici, pour rester simple, on renvoie le fichier qui vient d'être sauvegardé
                     response = FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
                     response["X-Suggested-Filename"] = final_zip_name
                     return response
@@ -828,8 +825,73 @@ def user_view_plasmid(request, campaign_id):
         'files': files_in_zip
     })
 
-from Bio import SeqIO
-from io import TextIOWrapper
+
+def campaign_digestion(request, campaign_id):
+    """Page HTML affichant le blot de digestion si présent dans le zip de résultats."""
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+
+    # Vérifier qu'une enzyme a été sélectionnée lors de la simulation
+    if not campaign.enzyme:
+        return render(request, 'gestionTemplates/digestion.html', {
+            'campaign': campaign,
+            'error': "Aucune enzyme sélectionnée lors de la simulation."
+        })
+
+    if not campaign.result_file:
+        return render(request, 'gestionTemplates/digestion.html', {
+            'campaign': campaign,
+            'error': "Aucun fichier de résultats disponible pour cette simulation."
+        })
+
+    try:
+        with zipfile.ZipFile(campaign.result_file.path, 'r') as z:
+            found = None
+            for f in z.namelist():
+                if os.path.basename(f).lower() == 'digestion.png':
+                    found = f
+                    break
+
+            if not found:
+                return render(request, 'gestionTemplates/digestion.html', {
+                    'campaign': campaign,
+                    'error': "Aucun blot de digestion (digestion.png) trouvé dans les résultats."
+                })
+
+            image_url = reverse('templates:campaign_digestion_image', args=[campaign.id])
+            return render(request, 'gestionTemplates/digestion.html', {
+                'campaign': campaign,
+                'image_url': image_url
+            })
+    except zipfile.BadZipFile:
+        return render(request, 'gestionTemplates/digestion.html', {
+            'campaign': campaign,
+            'error': "Fichier de résultats corrompu."
+        })
+
+
+def campaign_digestion_image(request, campaign_id):
+    """Retourne l'image PNG directement depuis l'archive de résultats."""
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+
+    if not campaign.result_file:
+        raise Http404
+
+    try:
+        with zipfile.ZipFile(campaign.result_file.path, 'r') as z:
+            found = None
+            for f in z.namelist():
+                if os.path.basename(f).lower() == 'digestion.png':
+                    found = f
+                    break
+
+            if not found:
+                raise Http404
+
+            data = z.read(found)
+            return HttpResponse(data, content_type='image/png')
+    except zipfile.BadZipFile:
+        raise Http404
+
 
 def plasmid_search(request):
     privacy = request.GET.get('privacy', '')

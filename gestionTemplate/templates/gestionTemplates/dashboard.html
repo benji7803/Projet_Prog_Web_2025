@@ -104,7 +104,10 @@
 
                         {% if campaign.result_file %}
                             <a href="{{ campaign.result_file.url }}" class="btn btn-primary">📥 Résultat</a>
-                            <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-secondary">Visualiser</a>
+                            <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-secondary">Visualiser les plasmides</a>
+                            {% if campaign.enzyme and campaign.status == 'done' %}
+                                <a href="{% url 'templates:campaign_digestion' campaign.id %}" class="btn btn-secondary" title="Afficher le blot de digestion">Gel d'électrophorèse</a>
+                            {% endif %}
                             <a href="{% url 'templates:delete_campaign' campaign.id %}" 
                                class="btn btn-icon btn-danger"
                                onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"

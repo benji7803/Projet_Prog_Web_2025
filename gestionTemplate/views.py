@@ -1,20 +1,19 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import FileResponse, JsonResponse, HttpResponse, Http404
+from django.http import FileResponse, HttpResponse, Http404
 from django.urls import reverse
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.forms import inlineformset_factory
 from django.db import transaction
-from django.contrib.auth.decorators import login_required
-import json
 
 from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
 from .plasmid_mapping import generate_plasmid_maps
 
-from io import BytesIO
-from django.core.files.uploadedfile import InMemoryUploadedFile
+
+from Bio import SeqIO
+from io import TextIOWrapper
 import pandas as pd
 import uuid
 import os
@@ -22,8 +21,6 @@ import pathlib
 import zipfile
 import tarfile
 import shutil
-import csv
-import tempfile
 
 # insillyclo
 from insillyclo.template_generator import make_template
@@ -585,7 +582,6 @@ def simulate(request):
                         print(f"Erreur nettoyage : {e}")
 
                     # Pour l'utilisateur connecté, on redirige souvent vers le dashboard ou on renvoie le fichier stocké
-                    # Ici, pour rester simple, on renvoie le fichier qui vient d'être sauvegardé
                     response = FileResponse(campaign_instance.result_file.open('rb'), as_attachment=True, filename=final_zip_name)
                     response["X-Suggested-Filename"] = final_zip_name
                     return response
@@ -841,8 +837,6 @@ def campaign_digestion_image(request, campaign_id):
     except zipfile.BadZipFile:
         raise Http404
 
-from Bio import SeqIO
-from io import TextIOWrapper
 
 def plasmid_search(request):
     privacy = request.GET.get('privacy', '')

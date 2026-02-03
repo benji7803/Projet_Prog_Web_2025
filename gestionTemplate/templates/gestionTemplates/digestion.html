@@ -1,0 +1,23 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="digestion-page">
+    <header class="page-header">
+        <h2>Western blot de digestion - {{ campaign.name }}</h2>
+    </header>
+
+    {% if error %}
+        <div class="alert alert-warning">{{ error }}</div>
+        <a href="{% url 'templates:dashboard' %}" class="btn">← Retour</a>
+    {% else %}
+        <p>Enzyme utilisée : <strong>{{ campaign.enzyme }}</strong></p>
+        <div class="image-wrapper" style="max-width:100%;">
+            <img src="{{ image_url }}" alt="Blot de digestion" style="max-width:100%; height:auto; border:1px solid #ddd; padding:8px; background:#fff;">
+        </div>
+        <p class="mt-2">
+            <a href="{{ image_url }}" download class="btn btn-primary">Télécharger l'image</a>
+            <a href="{% url 'templates:dashboard' %}" class="btn">← Retour</a>
+        </p>
+    {% endif %}
+</div>
+{% endblock %}

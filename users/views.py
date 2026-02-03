@@ -51,6 +51,23 @@ def user_profile(request):
         'published_templates': published_templates,
     })
 
+def delete_user(request, user_id):
+    user = get_object_or_404(UserModel, id=user_id)
+    if request.method == "POST":
+        if request.user == user or request.user.is_superuser:
+            if Equipe.objects.filter(leader=user).exists():
+                messages.error(request, "Vous ne pouvez pas supprimer un utilisateur qui est chef d'équipe. Veuillez transférer la direction de l'équipe ou supprimer l'équipe d'abord.")
+                return redirect('users:profile')
+            else:
+                user.delete()
+                messages.success(request, "L'utilisateur a été supprimé avec succès.")
+                return redirect("templates:dashboard")
+        else:
+            messages.error(request, "Vous n'avez pas la permission de supprimer cet utilisateur.")
+            return redirect('users:profile')
+    return render(request, 'users/confirm_delete_user.html', {'user_to_delete': user})
+
+
 #Gestion d'équipe --------------------------------------------------------------
 def create_team(request):
     if request.method == 'POST':

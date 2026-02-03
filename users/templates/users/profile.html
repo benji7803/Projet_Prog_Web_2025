@@ -125,4 +125,10 @@
     <p>Aucun template publié pour le moment.</p>
 {% endif %}
 
+<form action="{% url 'users:delete_user' user.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible.')">
+            {% csrf_token %}
+            <button type="submit" class="btn-outline-danger" style="padding: 5px 10px; font-size: 0.8rem; background-color: #8B0000; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Supprimer l'utilisateur
+            </button>
+        </form>
 {% endblock %}

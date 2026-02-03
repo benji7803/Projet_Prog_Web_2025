@@ -10,6 +10,7 @@ urlpatterns = [
     path('profile/', views.user_profile, name='profile'),
     path('create_team/', views.create_team, name='create_team'),
     path('team/<int:team_id>/', views.team_detail, name='team_detail'),
+    path('delete_user/<int:user_id>/', views.delete_user, name='delete_user'),
 
     path('team/<int:team_id>/invite/', views.invite_member, name='invite_member'),
     path('team/<int:team_id>/remove/<int:user_id>/', views.remove_member, name='remove_member'),

@@ -35,45 +35,6 @@
         <button class="close-btn" onclick="this.closest('dialog').close()">Fermer</button>
     </dialog>
 
-    <!-- Table des templates -->
-    <section class="templates-table">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nom du Template</th>
-                    <th>Fichier actuel</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in liste_templates %}
-                <tr>
-                    <td title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
-                    <td title="{{ t.display_name }}">{{ t.display_name }}</td>
-                    <td>
-                        <div class="table-actions">
-                            <a href="{% url 'templates:download_template' t.id %}" class="btn btn-icon btn-info" title="Télécharger">📥</a>
-                            <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-icon btn-warning" title="Modifier">✏️</a>
-                            <a href="{% url 'templates:simulate' %}" class="btn btn-icon btn-primary" title="Simuler">🚀</a>
-
-                            {% if t.isPublic %}
-                                <span class="badge bg-success">Public</span>
-                            {% endif %}
-
-                            <a href="{% url 'templates:delete_template' t.id %}" 
-                               class="btn btn-icon btn-danger"
-                               onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
-                               title="Supprimer">🗑️</a>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="3" class="empty-row">Aucun template créé.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </section>
-
     <!-- Table des Tables de correspondances -->
     <section class="templates-table">
         <table>

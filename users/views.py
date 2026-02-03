@@ -59,6 +59,7 @@ def delete_user(request, user_id):
                 messages.error(request, "Vous ne pouvez pas supprimer un utilisateur qui est chef d'équipe. Veuillez transférer la direction de l'équipe ou supprimer l'équipe d'abord.")
                 return redirect('users:profile')
             else:
+                logout(request)
                 user.delete()
                 messages.success(request, "L'utilisateur a été supprimé avec succès.")
                 return redirect("templates:dashboard")

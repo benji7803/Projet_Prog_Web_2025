@@ -84,37 +84,48 @@ def invite_member(request, team_id):
     team = get_object_or_404(Equipe, id=team_id)
 
     if request.method == 'POST':
-        form = InviteMemberForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data['email']
-            try:
-                user_to_invite = UserModel.objects.get(email=email)
-                
-                if team.membres.filter(id=user_to_invite.id).exists():
-                    messages.warning(request, "Cet utilisateur est déjà membre.")
-                else:
-                    team.membres.add(user_to_invite)
-                    messages.success(request, f"{user_to_invite.email} a été ajouté.")
+        if team.leader == request.user:
+            form = InviteMemberForm(request.POST)
+            if form.is_valid():
+                email = form.cleaned_data['email']
+                try:
+                    user_to_invite = UserModel.objects.get(email=email)
                     
-            except UserModel.DoesNotExist:
-                messages.error(request, "Aucun utilisateur trouvé avec cet email.")
-                
+                    if team.membres.filter(id=user_to_invite.id).exists():
+                        messages.warning(request, "Cet utilisateur est déjà membre.")
+                    else:
+                        team.membres.add(user_to_invite)
+                        messages.success(request, f"{user_to_invite.email} a été ajouté.")
+                        
+                except UserModel.DoesNotExist:
+                    messages.error(request, "Aucun utilisateur trouvé avec cet email.")
+        else:
+            messages.error(request, "Seul le chef de l'équipe peut inviter des membres.")        
     return redirect('users:team_detail', team_id=team.id)
 
 def remove_member(request, team_id, user_id):
-    team = get_object_or_404(Equipe, id=team_id)
-    membre_lien = get_object_or_404(MembreEquipe, equipe=team, user_id=user_id)
-    messages.success(request, f"{membre_lien.user.get_full_name()} a été exclu de l'équipe")
-    MembreEquipe.objects.filter(equipe=team, user_id=user_id).delete()
-    return redirect('users:team_detail', team_id=team.id)
+    if team.leader == request.user:
+        team = get_object_or_404(Equipe, id=team_id)
+        membre_lien = get_object_or_404(MembreEquipe, equipe=team, user_id=user_id)
+        messages.success(request, f"{membre_lien.user.get_full_name()} a été exclu de l'équipe")
+        MembreEquipe.objects.filter(equipe=team, user_id=user_id).delete()
+        return redirect('users:team_detail', team_id=team.id)
+    else:
+        messages.error(request, "Seul le chef de l'équipe peut exclure un membre.")
+        return redirect('users:team_detail', team_id=team.id)
 
 def promote_member(request, team_id, user_id):
     team = get_object_or_404(Equipe, id=team_id)
     membre_lien = get_object_or_404(MembreEquipe, equipe=team, user_id=user_id)
-    if team.leader.id != int(user_id):
+    if team.leader == request.user:
+        if team.leader.id != int(user_id):
             team.leader_id = user_id
             team.save()
             messages.success(request, f"{membre_lien.user.get_full_name()} est le nouveau chef de l'équipe")
+        else:
+            messages.error(request, "Le chef de l'équipe ne peut pas se promouvoir lui-même.")
+    else:
+        messages.error(request, "Seul le chef de l'équipe peut promouvoir un membre.")
     return redirect('users:team_detail', team_id=team.id)
 
 def delete_team(request, team_id):
@@ -122,6 +133,8 @@ def delete_team(request, team_id):
     if team.leader == request.user:
         messages.success(request, f"L'équipe {team.name} a été supprimée avec succès")
         team.delete()
+    else:
+        messages.error(request, "Seul le chef de l'équipe peut supprimer l'équipe.")
     return redirect('users:profile')
 
 #Table de correspondances ----------------------------------------------------------------
@@ -130,7 +143,6 @@ def add_table(request, team_id):
     team = get_object_or_404(Equipe, id=team_id)
     if request.method == "POST":
         uploaded_table = request.FILES.get('uploaded_table')
-        
         if uploaded_table:
             is_leader = (request.user == team.leader)
             Tablecor.objects.create(
@@ -151,10 +163,12 @@ def remove_table(request, team_id, table_id):
     team = get_object_or_404(Equipe, id=team_id)
     table = get_object_or_404(Tablecor, id=table_id)
     if request.method == "POST":
-        messages.success(request, f"La table { table.name } a été supprimée avec succès")
-        table.fichier.delete(save=False)
-        table.delete()
-
+        if request.user == team.leader:
+            messages.success(request, f"La table { table.name } a été supprimée avec succès")
+            table.fichier.delete(save=False)
+            table.delete()
+        else:
+            messages.error(request, "Seul le chef de l'équipe peut supprimer un tableau.")
     return redirect('users:team_detail', team_id=team_id)
 
 def download_table(request,team_id, table_id):
@@ -169,11 +183,15 @@ def download_table(request,team_id, table_id):
     except (FileNotFoundError, ValueError):
         raise Http404("Le fichier est introuvable sur le serveur.")
 
-def validate_table(request, team_id, table_id): 
-    table = get_object_or_404(Tablecor, id=table_id)
-    table.is_validated = True
-    table.save()
-    messages.success(request, f"Le tableau {table.name} est désormais officiel.")
+def validate_table(request, team_id, table_id):
+    team = get_object_or_404(Equipe, id=team_id)
+    if request.user == team.leader:
+        table = get_object_or_404(Tablecor, id=table_id)
+        table.is_validated = True
+        table.save()
+        messages.success(request, f"Le tableau {table.name} est désormais officiel.")
+    else:
+        messages.error(request, "Seul le chef de l'équipe peut valider un tableau.")
     return redirect('users:team_detail', team_id=team_id)
 
 #Collection de plasmides-------------------------------------------------------------
@@ -199,11 +217,15 @@ def add_seqcol(request, team_id):
     return redirect('users:team_detail', team_id=team.id)
 
 def remove_seqcol(request, team_id, seqcol_id):
+    team = get_object_or_404(Equipe, id=team_id)
     seqcol = get_object_or_404(Seqcollection, id=seqcol_id)
     if request.method == "POST":
-        messages.success(request, f"La table { seqcol.name } a été supprimée avec succès")
-        seqcol.fichier.delete(save=False)
-        seqcol.delete()
+        if request.user == team.leader:
+            messages.success(request, f"La collection { seqcol.name } a été supprimée avec succès")
+            seqcol.fichier.delete(save=False)
+            seqcol.delete()
+        else:
+            messages.error(request, "Seul le chef de l'équipe peut supprimer une collection de plasmides.")
 
     return redirect('users:team_detail', team_id=team_id)
 
@@ -219,10 +241,14 @@ def download_seqcol(request,team_id, seqcol_id):
         raise Http404("Le fichier est introuvable sur le serveur.")
     
 def validate_seqcol(request, team_id, seqcol_id):
-    seqcol = get_object_or_404(Seqcollection, id=seqcol_id)
-    seqcol.is_validated = True
-    seqcol.save()
-    messages.success(request, f"La collection {seqcol.name} est désormais officiel.")
+    team = get_object_or_404(Equipe, id=team_id)
+    if request.user == team.leader:
+        seqcol = get_object_or_404(Seqcollection, id=seqcol_id)
+        seqcol.is_validated = True
+        seqcol.save()
+        messages.success(request, f"La collection {seqcol.name} est désormais officiel.")
+    else:
+        messages.error(request, "Seul le chef de l'équipe peut valider une collection de plasmides.")
     return redirect('users:team_detail', team_id=team_id)
 
 #-------------------------------------------------------------------------------------------------

@@ -551,3 +551,56 @@ nav {
     border: 1px solid #ccc;
     border-radius: 6px;
 }
+
+/* On utilise 'body' au début pour être plus fort que n'importe quel fichier externe */
+body .dataTables_wrapper .dataTables_paginate {
+    float: right !important;
+    width: auto !important; /* Ne prend plus toute la largeur */
+    margin-top: 10px !important;
+    padding: 0 !important;
+    background: none !important;
+    background-image: none !important;
+    display: block !important;
+    }
+
+/* On s'attaque aux boutons pour enlever l'épaisseur et le bleu */
+body .dataTables_wrapper .dataTables_paginate .paginate_button {
+    display: inline-block !important;
+    padding: 2px 8px !important; /* Ultra fin */
+    margin-left: 2px !important;
+    border: 1px solid #dee3ea !important;
+        
+    /* On force la suppression du dégradé bleu par défaut */
+    background: white !important;
+    background-image: none !important; 
+    box-shadow: none !important;
+        
+    font-size: 0.8rem !important;
+    color: #003b66 !important;
+    border-radius: 4px !important;
+    }
+
+/* On gère le bouton de la page active séparément */
+body .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+body .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+    background-color: #007ab8 !important;
+    background-image: none !important;
+    color: white !important;
+    border: 1px solid #004b7f !important;
+}
+
+/* Aligne l'info (1 à 10 sur X) à gauche pour équilibrer la ligne */
+body .dataTables_wrapper .dataTables_info {
+    float: left !important;
+    width: auto !important;
+    font-size: 0.8rem !important;
+    padding-top: 10px !important;
+    color: #666 !important;
+}
+
+/* Nettoie les flottants pour éviter les bugs de mise en page */
+body .dataTables_wrapper::after {
+    content: "" !important;
+    display: table !important;
+    clear: both !important;
+}

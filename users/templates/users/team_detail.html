@@ -1,155 +1,182 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
     <h2 style="margin: 0;">Équipe : {{ team.name }}</h2>
 
     {% if request.user == team.leader %}
         <form action="{% url 'users:delete_team' team.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible.')">
             {% csrf_token %}
-            <button type="submit" class="btn-outline-danger" style="padding: 5px 10px; font-size: 0.8rem; background-color: #8B0000;">
+            <button type="submit" class="btn-outline-danger" style="padding: 5px 10px; font-size: 0.8rem; background-color: #8B0000; color: white; border: none; border-radius: 4px; cursor: pointer;">
                 Supprimer l'équipe
             </button>
         </form>
     {% endif %}
 </div>
 
-<section class="team-section">
-    <h3>Membres (par ancienneté)</h3>
-    <div class="members-list">
-        {% for lien in lien_membres %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid white;">
-                <span>
-                    {{ lien.user.get_full_name|default:lien.user.email }} {% if lien.user == team.leader%} (Chef d'équipe) {% endif %}
-                    <small style="color: gray;">(Rejoint le : {{ lien.date_rejoint|date:"d/m/Y" }})</small>
-                </span>
-                
-                {% if request.user == team.leader and lien.user != team.leader %}
-                <div style="display: flex; gap: 8px;">
-                    <form action="{% url 'users:promote_member' team.id lien.user.id %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-icon" title="Nommer Chef">👑</button>
-                    </form>
-                    <form action="{% url 'users:remove_member' team.id lien.user.id %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-icon btn-danger" title="Retirer de l'équipe" onclick="return confirm('Êtes-vous sûr de vouloir retirer {{ lien.user.get_full_name }} de l équipe ?');">❌</button>
-                    </form>
-                </div>
-                {% endif %}
-            </div>
-        {% endfor %}
+<section class="team-section" style="margin-bottom: 30px;">
+    <h3>Membres</h3>
+    <div class="custom-table-container">
+        <table id="tableMembres" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Membre</th>
+                    <th>Date d'adhésion</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lien in lien_membres %}
+                <tr>
+                    <td>{{ lien.user.get_full_name|default:lien.user.email }} {% if lien.user == team.leader %}(Chef){% endif %}</td>
+                    <td>{{ lien.date_rejoint|date:"Y-m-d" }}</td>
+                    <td>
+                        {% if request.user == team.leader and lien.user != team.leader %}
+                            <form action="{% url 'users:promote_member' team.id lien.user.id %}" method="post" style="display:inline;">
+                                {% csrf_token %}<button type="submit" class="btn-icon" title="Promouvoir" onclick="return confirm('Nommer {{ lien.user.get_full_name|default:lien.user.email }} chef ?');">👑</button>
+                            </form>
+                            <form action="{% url 'users:remove_member' team.id lien.user.id %}" method="post" style="display:inline;">
+                                {% csrf_token %}<button type="submit" class="btn-icon btn-danger" onclick="return confirm('Exclure {{ lien.user.get_full_name|default:lien.user.email }} ?');">❌</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if request.user == team.leader %}
+    <div style="max-width: 450px; margin-top: 20px;">
+        <h4 style="font-size: 0.9rem; margin-bottom: 10px;">Inviter un nouveau membre</h4>
+        <form action="{% url 'users:invite_member' team.id %}" method="post" style="display: flex;">
+            {% csrf_token %}
+            <input type="email" name="email" placeholder="adresse@email.com" required 
+                   style="height: 38px; flex: 1; padding: 0 12px; border: 1px solid #ccc; border-radius: 4px 0 0 4px; outline: none;">
+            <button type="submit" class="btn" style="height: 38px; padding: 0 20px; border: none; border-radius: 0 4px 4px 0; background-color: #007bff; color: white; cursor: pointer;">
+                Ajouter
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</section>
+
+<hr style="border: 0.5px solid #eee; margin: 40px 0;">
+
+<section class="files-section">
+    <h3>Tableaux de correspondance</h3>
+    
+    <form action="{% url 'users:add_table' team.id %}" method="post" enctype="multipart/form-data" style="margin-bottom: 15px;">
+        {% csrf_token %}
+        <input type="file" name="uploaded_table" accept=".xlsx">
+        <button type="submit">{% if request.user == team.leader %}Ajouter{% else %}Suggérer{% endif %}</button>
+    </form>
+    <div class="custom-table-container">
+        <table id="tableFiles" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for table in list_table %}
+                <tr>
+                    <td>{{ table.name }}</td>
+                    <td>{% if not table.is_validated %}<strong style="color: orange;">En attente</strong>{% else %}Validé{% endif %}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            {% if table.is_validated or request.user == table.uploaded_by or request.user == team.leader %}
+                                <a href="{% url 'users:download_table' team.id table.id %}" style="text-decoration:none;">Télécharger</a>
+                            {% endif %}
+                            {% if request.user == team.leader %}
+                                {% if not table.is_validated %}
+                                    <form action="{% url 'users:validate_table' team.id table.id %}" method="post">{% csrf_token %}<button type="submit">Valider</button></form>
+                                {% endif %}
+                                <form action="{% url 'users:remove_table' team.id table.id %}" method="post">{% csrf_token %}<button type="submit" onclick="return confirm('Supprimer cette table de correspondance ?');">Supprimer</button></form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </section>
 
-{% if request.user == team.leader %}
-<div style="max-width: 450px; margin-top: 20px;">
-    <h3 style="font-size: 1rem; margin-bottom: 10px;">Inviter un nouveau membre</h3>
-    <form action="{% url 'users:invite_member' team.id %}" method="post" style="display: flex;">
-        {% csrf_token %}
-        <input type="email" name="email" placeholder="adresse@email.com" required 
-               style="height: 38px; flex: 1; padding: 0 12px; border: 1px solid white; border-right: none; border-radius: 4px 0 0 4px; box-sizing: border-box; outline: none; font-size: 0.95rem;">
-        
-        <button type="submit" class="btn" 
-                style="height: 38px; padding: 0 20px; border: none; border-radius: 0 4px 4px 0; color: white; cursor: pointer; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; justify-content: center; box-sizing: border-box; transition: background 0.2s;">
-            Ajouter
-        </button>
-    </form>
-</div>
-{% endif %}
+<hr style="border: 0.5px solid #eee; margin: 40px 0;">
 
 <section class="files-section">
-    <h3>Tableau de correspondances de l'équipe</h3>
-    <form action="{% url 'users:add_table' team.id %}" method="post" enctype="multipart/form-data">
+    <h3>Collections de plasmides</h3>
+    
+    <form action="{% url 'users:add_seqcol' team.id %}" method="post" enctype="multipart/form-data" style="margin-bottom: 15px;">
         {% csrf_token %}
-        <input type="file" id="file-upload" name="uploaded_table" accept=".xlsx">
-        <button type="submit">
-        {% if request.user == team.leader %}
-            Ajouter un tableau
-        {% else %}
-            Suggérer un tableau
-        {% endif %}
-        </button>
+        <input type="file" name="uploaded_seqcol" accept=".zip">
+        <button type="submit">{% if request.user == team.leader %}Ajouter{% else %}Suggérer{% endif %}</button>
     </form>
-    {% for table in list_table %}
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid white;">
-                <span>
-                {{ table.name }} 
-                {% if not table.is_validated %}
-                    <strong style="color: orange;">(En attente de validation)</strong>
-                {% endif %}
-            </span>
-            <div style="display: flex; gap: 8px;">
-                {% if table.is_validated or request.user == table.uploaded_by or request.user == team.leader %}
-                    <a href="{% url 'users:download_table' team.id table.id %}" 
-                        style="background-color: green; color: white; padding: 5px 12px; text-decoration: none; border-radius: 4px; font-size: 13px;">
-                        Télécharger
-                    </a>
-                {% endif %}
-                {% if request.user == team.leader %}
-                    {% if not table.is_validated %}
-                        <form action="{% url 'users:validate_table' team.id table.id %}" method="post">
-                            {% csrf_token %}
-                            <button type="submit" style="background-color: green; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">Valider</button>
-                        </form>
-                    {% endif %}
-                    <form action="{% url 'users:remove_table' team.id table.id %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-icon" title="Supprimmer la table" style="background-color: #8B0000;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette table ?');">Supprimer</button>
-                    </form>
-                {% endif %}
-            </div>
-        </div>
-    {% endfor %}
-</section>
-
-<section class="files-section">
-    <h3>Collections de plasmides de l'équipe</h3>
-    <form action="{% url 'users:add_seqcol' team.id %}" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="file" id="file-upload" name="uploaded_seqcol" accept=".zip">
-        <button type="submit">
-        {% if request.user == team.leader %}
-            Ajouter un tableau
-        {% else %}
-            Suggérer un tableau
-        {% endif %}
-        </button>
-    </form>
-    {% for seqcol in list_seqcol %}
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid white;">
-            <span>
-                {{ seqcol.name }} 
-                {% if not seqcol.is_validated %}
-                    <strong style="color: orange">(En attente de validation)</strong>
-                {% endif %}
-            </span>
-            <div style="display: flex; gap: 8px;">
-                {% if seqcol.is_validated or request.user == seqcol.uploaded_by or request.user == team.leader %}
-                    <a href="{% url 'users:download_seqcol' team.id seqcol.id %}" 
-                        style="background-color: green; color: white; padding: 5px 12px; text-decoration: none; border-radius: 4px; font-size: 13px;">
-                        Télécharger
-                    </a>
-                {% endif %}
-                {% if request.user == team.leader %}
-                    {% if not seqcol.is_validated %}
-                        <form action="{% url 'users:validate_seqcol' team.id seqcol.id %}" method="post">
-                            {% csrf_token %}
-                            <button type="submit" style="background-color: green; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">Valider</button>
-                        </form>
-                    {% endif %}
-                    <form action="{% url 'users:remove_seqcol' team.id seqcol.id %}" method="post">
-                        {% csrf_token %}
-                        <button type="submit" class="btn-icon" title="Supprimmer la collection" style="background-color: #8B0000;" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette collection ?');">Supprimer</button>
-                    </form>
-                {% endif %}
-            </div>
-        </div>
-    {% endfor %}
+    <div class="custom-table-container">
+        <table id="tableSeqCol" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for seqcol in list_seqcol %}
+                <tr>
+                    <td>{{ seqcol.name }}</td>
+                    <td>{% if not seqcol.is_validated %}<strong style="color: orange;">En attente</strong>{% else %}Validé{% endif %}</td>
+                    <td>
+                        <div style="display: flex; gap: 8px;">
+                            {% if seqcol.is_validated or request.user == seqcol.uploaded_by or request.user == team.leader %}
+                                <a href="{% url 'users:download_seqcol' team.id seqcol.id %}" style="text-decoration:none;">Télécharger</a>
+                            {% endif %}
+                            {% if request.user == team.leader %}
+                                {% if not seqcol.is_validated %}
+                                    <form action="{% url 'users:validate_seqcol' team.id seqcol.id %}" method="post">{% csrf_token %}<button type="submit">Valider</button></form>
+                                {% endif %}
+                                <form action="{% url 'users:remove_seqcol' team.id seqcol.id %}" method="post">{% csrf_token %}<button type="submit" onclick="return confirm('Supprimer cette collection de plasmides ?');">Supprimer</button></form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </section>
 
 <p style="margin-top: 40px;">
-    <a href="{% url 'users:profile' %}" style="color: darkslategray; text-decoration: none; font-size: 0.9rem;">← Retour au profil</a>
+    <a href="{% url 'users:profile' %}" style="color: #666; text-decoration: none; font-size: 0.9rem;">← Retour au profil</a>
 </p>
+{% endblock %}
 
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        const langFR = {
+            url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+            paginate: {
+                first: "«",
+                last: "»",
+                next: "›",    
+                previous: "‹"
+            }
+        };
+        const commonConfig = {
+            language: langFR,
+            pageLength: 10,
+            lengthChange: false,
+            pagingType: "simple_numbers",
+            dom: 'frtip', 
+        };
+
+        $('#tableMembres').DataTable({ ...commonConfig, order: [[1, 'asc']] });
+        $('#tableFiles').DataTable(commonConfig);
+        $('#tableSeqCol').DataTable(commonConfig);
+    });
+</script>
 {% endblock %}

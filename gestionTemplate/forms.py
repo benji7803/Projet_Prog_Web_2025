@@ -3,6 +3,9 @@ from .models import CampaignTemplate, ColumnTemplate
 
 
 # Création de templates
+class UploadFileForm(forms.Form):
+    fichier = forms.FileField()
+
 class ColumnForm(forms.ModelForm):
     class Meta:
         model = ColumnTemplate

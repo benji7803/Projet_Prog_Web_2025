@@ -6,6 +6,17 @@
     <header class="page-header">
         <h2>Mes Templates de Campagne</h2>
         <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template</a>
+
+        <form method="post" enctype="multipart/form-data" id="upload-form">
+            {% csrf_token %}
+            
+            <input type="file" name="fichier" id="id_fichier" style="display: none;" onchange="this.form.submit()">
+            
+            <button type="button" onclick="document.getElementById('id_fichier').click()" class="mon-style-bouton">
+                Choisir et Envoyer le fichier
+            </button>
+        </form>
+
         {% if user.is_authenticated %}
             <button class="btn btn-primary" id="openSearchModalBtn">
                 Ajouter un template public

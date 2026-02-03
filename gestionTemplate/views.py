@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 import json
 
 from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest
-from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm
+from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm, UploadFileForm
 from .plasmid_mapping import generate_plasmid_maps
 
 from io import BytesIO
@@ -41,10 +41,21 @@ def dashboard(request):
     else:
         liste_templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
         previous_sim = None
+    
+
+    if request.method == 'POST':
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES['fichier']
+            process_template(file, request.user if request.user.is_authenticated else None)
+
+    else:
+        form = UploadFileForm()
 
     context = {
         'liste_templates': liste_templates,
         'previous_sim': previous_sim,
+        'form': form,
     }
 
     return render(request, 'gestionTemplates/dashboard.html', context)
@@ -76,6 +87,50 @@ def create_template(request):
         formset = ColumnFormSet(instance=CampaignTemplate(), prefix='columns')
 
     return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset, "is_edit": False})
+
+# Upload
+def process_template(file, user = None):
+    df_raw = pd.read_excel(file, header=None)
+
+    # Extraction des métadonnées
+    enzyme = df_raw.iloc[1, 1]
+    project_name = df_raw.iloc[2, 1]
+    output_separator = df_raw.iloc[3, 1]
+
+    # Trouver la ligne de départ
+    start_row = 0
+    for i, row in df_raw.iterrows():
+        if "Output plasmid id" in str(row[0]):
+            start_row = i
+            break
+
+    df_plasmids = df_raw.iloc[start_row:].copy()
+    df_plasmids.columns = df_plasmids.iloc[0]
+    df_plasmids = df_plasmids[1:]
+    df_plasmids = df_plasmids.dropna(subset=[df_plasmids.columns[0]])
+
+    # Créer le CampaignTemplate
+    campaign_template = CampaignTemplate.objects.create(
+        name=project_name,
+        description=f"Template importé de {file.name}",
+        restriction_enzyme=enzyme,
+        separator_sortie=output_separator,
+        user=user,
+        isPublic=False
+    )
+
+    # Extraire et créer les colonnes (à partir de la colonne 2)
+    part_columns = df_plasmids.columns[2:]
+    for col_name in part_columns:
+        if pd.notna(col_name):
+            ColumnTemplate.objects.create(
+                template=campaign_template,
+                part_names=str(col_name),
+                part_types='',  # À adapter selon tes besoins
+                is_optional=False,
+                in_output_name=True,
+                part_separators=output_separator
+            )
 
 
 # Modification

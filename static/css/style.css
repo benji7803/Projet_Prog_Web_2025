@@ -604,3 +604,21 @@ body .dataTables_wrapper::after {
     display: table !important;
     clear: both !important;
 }
+
+
+/* On cache l'input moche par défaut */
+.input-file-hidden {
+    display: none;
+}
+/* On stylise le label pour qu'il ressemble à un bouton */
+.custom-upload-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-block;
+}
+.custom-upload-btn:hover {
+    background-color: #0056b3;
+}

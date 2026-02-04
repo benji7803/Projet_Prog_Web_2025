@@ -30,6 +30,8 @@ urlpatterns = [
     path('plasmid/download/', views.download_plasmid, name='download_plasmid'),
     path('plasmid/<int:plasmid_id>/', views.plasmid_detail, name='plasmid_detail'),
     path('download/my_collection/<int:collection_id>/', views.download_my_collection, name='download_my_collection'),
+    path('collection/<int:collection_id>/plasmid/<str:plasmid_name>/download/', views.download_single_plasmid, name='download_single_plasmid'),
+
 ]
 
 if settings.DEBUG:

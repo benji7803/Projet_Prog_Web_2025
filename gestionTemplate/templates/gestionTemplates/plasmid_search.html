@@ -19,11 +19,9 @@
         </a>
     </div>
 
-    <!-- ------------------------------- -->
-    <!-- Onglet Recherche privée -->
-    <!-- ------------------------------- -->
     {% if request.GET.privacy == "private" %}
         {% if user.is_authenticated %}
+
             <!-- Sous-onglets -->
             <div class="tabs flex w-full mb-4 bg-gray-100 rounded-lg overflow-hidden shadow-sm">
                 <a href="?privacy=private&filter=public"
@@ -44,60 +42,60 @@
                 </a>
             </div>
 
-            <!-- =============================== -->
             <!-- Banque publique -->
-            <!-- =============================== -->
             {% if filter_type == 'public' or not filter_type %}
-                <h3>Banque publique de plasmides</h3>
-
-                <form method="get" class="inline-form flex gap-2 flex-wrap mb-3">
-                    <input type="hidden" name="privacy" value="private">
-                    <input type="hidden" name="filter" value="public">
-                    <input type="text" name="name" placeholder="Nom du plasmide" value="{{ request.GET.name|default:'' }}" class="flex-1 px-2 py-1 border rounded">
-                    <input type="text" name="organism" placeholder="Organisme" value="{{ request.GET.organism|default:'' }}" class="flex-1 px-2 py-1 border rounded">
-                    <input type="text" name="sequence" placeholder="Motif de séquence" value="{{ request.GET.sequence|default:'' }}" class="flex-1 px-2 py-1 border rounded">
-                    <input type="text" name="site" placeholder="Site / gène / promoteur" value="{{ request.GET.site|default:'' }}" class="flex-1 px-2 py-1 border rounded">
-                    <button type="submit" class="btn btn-primary px-4 py-1">Rechercher</button>
-                </form>
-
-                {% if public_plasmids %}
-                    <div class="templates-table overflow-x-auto mt-3">
-                        <table class="table-auto w-full border">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="border px-2 py-1">Nom</th>
-                                    <th class="border px-2 py-1">Organisme</th>
-                                    <th class="border px-2 py-1">Longueur (bp)</th>
-                                    <th class="border px-2 py-1">Sites / gènes</th>
-                                    <th class="border px-2 py-1">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for p in public_plasmids %}
-                                <tr>
-                                    <td class="border px-2 py-1">{{ p.name }}</td>
-                                    <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
-                                    <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
-                                    <td class="border px-2 py-1">{{ p.display_features|default:"-" }}</td>
-                                    <td class="border px-2 py-1 flex gap-1 flex-wrap">
-                                        <a href="{% url 'templates:download_plasmid' %}?plasmid_id={{ p.id }}" class="btn btn-sm btn-primary">Télécharger {{ p.name }}.gb</a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <div class="collapse-container mb-4">
+                    <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center">
+                        <h3>Banque publique de plasmides</h3>
                     </div>
-                {% else %}
-                    <p class="empty-row mt-4">Aucun plasmide trouvé.</p>
-                {% endif %}
+                    <div class="collapse-body p-3 border border-t-0 rounded-b">
+                        <form method="get" class="inline-form flex gap-2 flex-wrap mb-3">
+                            <input type="hidden" name="privacy" value="private">
+                            <input type="hidden" name="filter" value="public">
+                            <input type="text" name="name" placeholder="Nom du plasmide" value="{{ request.GET.name|default:'' }}" class="flex-1 px-2 py-1 border rounded">
+                            <input type="text" name="organism" placeholder="Organisme" value="{{ request.GET.organism|default:'' }}" class="flex-1 px-2 py-1 border rounded">
+                            <input type="text" name="sequence" placeholder="Motif de séquence" value="{{ request.GET.sequence|default:'' }}" class="flex-1 px-2 py-1 border rounded">
+                            <input type="text" name="site" placeholder="Site / gène / promoteur" value="{{ request.GET.site|default:'' }}" class="flex-1 px-2 py-1 border rounded">
+                            <button type="submit" class="btn btn-primary px-4 py-1">Rechercher</button>
+                        </form>
+
+                        {% if public_plasmids %}
+                            <div class="templates-table overflow-x-auto mt-3">
+                                <table class="table-auto w-full border">
+                                    <thead>
+                                        <tr class="bg-gray-100">
+                                            <th class="border px-2 py-1">Nom</th>
+                                            <th class="border px-2 py-1">Organisme</th>
+                                            <th class="border px-2 py-1">Longueur (bp)</th>
+                                            <th class="border px-2 py-1">Sites / gènes</th>
+                                            <th class="border px-2 py-1">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for p in public_plasmids %}
+                                        <tr>
+                                            <td class="border px-2 py-1">{{ p.name }}</td>
+                                            <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
+                                            <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
+                                            <td class="border px-2 py-1">{{ p.display_features|default:"-" }}</td>
+                                            <td class="border px-2 py-1 flex gap-1 flex-wrap">
+                                                <a href="{% url 'templates:download_plasmid' %}?plasmid_id={{ p.id }}" class="btn btn-sm btn-primary">Télécharger {{ p.name }}.gb</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="empty-row mt-4">Aucun plasmide trouvé.</p>
+                        {% endif %}
+                    </div>
+                </div>
             {% endif %}
 
-            <!-- =============================== -->
             <!-- Mes simulations -->
-            <!-- =============================== -->
             {% if filter_type == 'mine' %}
                 {% if campaigns_with_plasmids %}
-                    <h3>Mes simulations</h3>
                     {% for item in campaigns_with_plasmids %}
                         <div class="collapse-container mb-4">
                             <div class="collapse-header flex justify-between items-center p-2 bg-gray-200 rounded">
@@ -105,143 +103,196 @@
                                 <span class="status-badge {{ item.campaign.status }}">{{ item.campaign.status|capfirst }}</span>
                             </div>
                             <div class="collapse-body p-3 border border-t-0 rounded-b">
-                                <p>Créée le : {{ item.campaign.created_at|date:"d/m/Y H:i" }} | Template : {{ item.campaign.template_file.name|default:"-" }}</p>
-                                <h4 class="mt-3">Plasmides de l'archive :</h4>
-                                {% if item.plasmids_archive %}
-                                    <div class="templates-table overflow-x-auto">
-                                        <table class="table-auto w-full border">
-                                            <thead>
-                                                <tr class="bg-gray-100">
-                                                    <th class="border px-2 py-1">Nom</th>
-                                                    <th class="border px-2 py-1">Organisme</th>
-                                                    <th class="border px-2 py-1">Longueur (bp)</th>
-                                                    <th class="border px-2 py-1">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for p in item.plasmids_archive %}
-                                                <tr>
-                                                    <td class="border px-2 py-1">{{ p.name }}</td>
-                                                    <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
-                                                    <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
-                                                    <td class="border px-2 py-1 flex gap-1 flex-wrap">
-                                                        <a href="{% url 'templates:user_view_plasmid_archive' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">Visualiser</a>
-                                                        <a href="{% url 'templates:download_plasmid' %}?campaign_id={{ item.campaign.id }}&plasmid_name={{ p.name|urlencode }}" class="btn btn-sm btn-primary">Télécharger</a>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                {% else %}
-                                    <p class="empty-row">Aucun plasmide dans l'archive.</p>
-                                {% endif %}
 
-                                <h4 class="mt-3">Plasmides du résultat :</h4>
-                                {% if item.plasmids_results %}
-                                    <div class="templates-table overflow-x-auto">
-                                        <table class="table-auto w-full border">
-                                            <thead>
-                                                <tr class="bg-gray-100">
-                                                    <th class="border px-2 py-1">Nom</th>
-                                                    <th class="border px-2 py-1">Organisme</th>
-                                                    <th class="border px-2 py-1">Longueur (bp)</th>
-                                                    <th class="border px-2 py-1">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for p in item.plasmids_results %}
-                                                <tr>
-                                                    <td class="border px-2 py-1">{{ p.name }}</td>
-                                                    <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
-                                                    <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
-                                                    <td class="border px-2 py-1 flex gap-1 flex-wrap">
-                                                        <a href="{% url 'templates:user_view_plasmid' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">Visualiser</a>
-                                                        <a href="{% url 'templates:download_plasmid' %}?campaign_id={{ item.campaign.id }}&plasmid_name={{ p.name|urlencode }}" class="btn btn-sm btn-primary">Télécharger</a>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
+                                <p>Créée le : {{ item.campaign.created_at|date:"d/m/Y H:i" }} | Template : {{ item.campaign.template_file.name|default:"-" }}</p>
+
+                                <!-- Plasmides de l'archive -->
+                                <div class="collapse-container mb-2">
+                                    <div class="collapse-header p-2 bg-gray-100 rounded cursor-pointer">
+                                        <h4>Plasmides de l'archive</h4>
+                                        <span class="collapse-toggle">▼</span>
                                     </div>
-                                {% else %}
-                                    <p class="empty-row">Aucun plasmide dans l'archive.</p>
-                                {% endif %}
+                                    <div class="collapse-body p-2 border border-t-0 rounded-b">
+                                        {% if item.plasmids_archive %}
+                                            <div class="templates-table overflow-x-auto">
+                                                <table class="table-auto w-full border">
+                                                    <thead>
+                                                        <tr class="bg-gray-100">
+                                                            <th class="border px-2 py-1">Nom</th>
+                                                            <th class="border px-2 py-1">Organisme</th>
+                                                            <th class="border px-2 py-1">Longueur (bp)</th>
+                                                            <th class="border px-2 py-1">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for p in item.plasmids_archive %}
+                                                        <tr>
+                                                            <td class="border px-2 py-1">{{ p.name }}</td>
+                                                            <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
+                                                            <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
+                                                            <td class="border px-2 py-1 flex gap-1 flex-wrap">
+                                                                <a href="{% url 'templates:user_view_plasmid_archive' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">Visualiser</a>
+                                                                <a href="{% url 'templates:download_plasmid' %}?campaign_id={{ item.campaign.id }}&plasmid_name={{ p.name|urlencode }}" class="btn btn-sm btn-primary">Télécharger</a>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <p class="empty-row">Aucun plasmide dans l'archive.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Plasmides du résultat -->
+                                <div class="collapse-container mb-2">
+                                    <div class="collapse-header p-2 bg-gray-100 rounded cursor-pointer">
+                                        <h4>Plasmides du résultat</h4>
+                                        <span class="collapse-toggle">▼</span>
+                                    </div>
+                                    <div class="collapse-body p-2 border border-t-0 rounded-b">
+                                        {% if item.plasmids_results %}
+                                            <div class="templates-table overflow-x-auto">
+                                                <table class="table-auto w-full border">
+                                                    <thead>
+                                                        <tr class="bg-gray-100">
+                                                            <th class="border px-2 py-1">Nom</th>
+                                                            <th class="border px-2 py-1">Organisme</th>
+                                                            <th class="border px-2 py-1">Longueur (bp)</th>
+                                                            <th class="border px-2 py-1">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for p in item.plasmids_results %}
+                                                        <tr>
+                                                            <td class="border px-2 py-1">{{ p.name }}</td>
+                                                            <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
+                                                            <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
+                                                            <td class="border px-2 py-1 flex gap-1 flex-wrap">
+                                                                <a href="{% url 'templates:user_view_plasmid' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">Visualiser</a>
+                                                                <a href="{% url 'templates:download_plasmid' %}?campaign_id={{ item.campaign.id }}&plasmid_name={{ p.name|urlencode }}" class="btn btn-sm btn-primary">Télécharger</a>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <p class="empty-row">Aucun plasmide dans le résultat.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
-                    {% endfor %}
+                        {% endfor %}
+
                 {% else %}
                     <p>Aucune campagne trouvée.</p>
                 {% endif %}
             {% endif %}
 
-            <!-- =============================== -->
             <!-- Mes collections -->
-            <!-- =============================== -->
             {% if filter_type == 'my_collections' %}
-                <h3>Mes collections</h3>
                 {% if my_collections %}
-                    <div class="templates-table overflow-x-auto mt-3">
-                        <table class="table-auto w-full border">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="border px-2 py-1">Nom</th>
-                                    <th class="border px-2 py-1">Créée le</th>
-                                    <th class="border px-2 py-1">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for c in my_collections %}
-                                <tr>
-                                    <td class="border px-2 py-1">{{ c.name }}</td>
-                                    <td class="border px-2 py-1">{{ c.created_at|date:"d/m/Y H:i" }}</td>
-                                    <td class="border px-2 py-1 flex gap-1 flex-wrap">
-                                        <a href="{% url 'templates:download_my_collection' c.id %}" class="btn btn-sm btn-primary">
-                                            Télécharger ZIP
-                                        </a>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    {% for item in my_collections %}
+                        <div class="collapse-container mb-4">
+                            <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center">
+                                <div>
+                                    <h3>{{ item.collection.name }}</h3>
+                                    <p class="text-sm text-gray-600">Créée le : {{ item.collection.created_at|date:"d/m/Y H:i" }}</p>
+                                </div>
+                                <span class="collapse-toggle">▼</span>
+                            </div>
+                            <div class="collapse-body p-3 border border-t-0 rounded-b">
+                                {% if item.plasmids %}
+                                    <div class="templates-table overflow-x-auto mt-2">
+                                        <table class="table-auto w-full border">
+                                            <thead>
+                                                <tr class="bg-gray-100">
+                                                    <th class="border px-2 py-1">Nom</th>
+                                                    <th class="border px-2 py-1">Organisme</th>
+                                                    <th class="border px-2 py-1">Longueur (bp)</th>
+                                                    <th class="border px-2 py-1">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for p in item.plasmids %}
+                                                    <tr>
+                                                        <td class="border px-2 py-1">{{ p.name }}</td>
+                                                        <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
+                                                        <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
+                                                        <td class="border px-2 py-1 flex gap-1 flex-wrap">
+                                                            <a href="{% url 'templates:download_single_plasmid' item.collection.id p.name %}" class="btn btn-sm btn-primary">
+                                                                Télécharger
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <p class="empty-row mt-2">Aucun plasmide trouvé dans cette collection.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
                 {% else %}
                     <p class="empty-row mt-4">Aucune collection trouvée.</p>
                 {% endif %}
             {% endif %}
+                                                            
 
-            <!-- =============================== -->
             <!-- Collections de mes équipes -->
-            <!-- =============================== -->
             {% if filter_type == 'team_collections' %}
-                <h3>Collections de mes équipes</h3>
                 {% if team_collections %}
-                    <div class="templates-table overflow-x-auto mt-3">
-                        <table class="table-auto w-full border">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="border px-2 py-1">Nom</th>
-                                    <th class="border px-2 py-1">Équipe</th>
-                                    <th class="border px-2 py-1">Créée le</th>
-                                    <th class="border px-2 py-1">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for c in team_collections %}
-                                <tr>
-                                    <td class="border px-2 py-1">{{ c.name }}</td>
-                                    <td class="border px-2 py-1">{{ c.equipe.name }}</td>
-                                    <td class="border px-2 py-1">{{ c.created_at|date:"d/m/Y H:i" }}</td>
-                                    <td class="border px-2 py-1 flex gap-1 flex-wrap">
-                                        {% if c.fichier %}
-                                            <a href="{{ c.fichier.url }}" class="btn btn-sm btn-primary" download>Télécharger ZIP</a>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    {% for item in team_collections %}
+                        <div class="collapse-container mb-4">
+                            <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center">
+                                <div>
+                                    <h4>Équipe : {{ item.collection.equipe.name }}</h4>
+                                    <h3>{{ item.collection.name }}</h3>
+                                    <p class="text-sm text-gray-600">Créée le : {{ item.collection.created_at|date:"d/m/Y H:i" }}</p>
+                                </div>
+                                <span class="collapse-toggle">▼</span>
+                            </div>
+                            <div class="collapse-body p-3 border border-t-0 rounded-b">
+                                {% if item.plasmids %}
+                                    <div class="templates-table overflow-x-auto mt-2">
+                                        <table class="table-auto w-full border">
+                                            <thead>
+                                                <tr class="bg-gray-100">
+                                                    <th class="border px-2 py-1">Nom</th>
+                                                    <th class="border px-2 py-1">Organisme</th>
+                                                    <th class="border px-2 py-1">Longueur (bp)</th>
+                                                    <th class="border px-2 py-1">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for p in item.plasmids %}
+                                                    <tr>
+                                                        <td class="border px-2 py-1">{{ p.name }}</td>
+                                                        <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
+                                                        <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
+                                                        <td class="border px-2 py-1 flex gap-1 flex-wrap">
+                                                            <a href="{% url 'templates:download_single_plasmid' item.collection.id p.name %}" class="btn btn-sm btn-primary">
+                                                                Télécharger
+                                                            </a>
+                                                        </td>
+
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    <p class="empty-row mt-2">Aucun plasmide trouvé dans cette collection.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
                 {% else %}
                     <p class="empty-row mt-4">Aucune collection trouvée.</p>
                 {% endif %}
@@ -252,12 +303,9 @@
             <a href="{% url 'users:login' %}" class="btn btn-primary">Connexion</a>
         {% endif %}
 
-    <!-- ------------------------------- -->
-    <!-- Onglet Recherche NCBI -->
-    <!-- ------------------------------- -->
     {% elif request.GET.privacy == "search_enter" %}
+        <!-- Recherche NCBI reste inchangée -->
         <h3>Recherche avancée Entrez (NCBI)</h3>
-
         <form method="get" class="advanced-form">
             <input type="hidden" name="privacy" value="search_enter">
             <div class="form-grid grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -291,4 +339,14 @@
     {% endif %}
 
 </main>
+
+<script>
+document.querySelectorAll(".collapse-header").forEach(header => {
+    header.addEventListener("click", () => {
+        const body = header.nextElementSibling;
+        body.classList.toggle("collapsed");
+        header.querySelector(".collapse-toggle").textContent = body.classList.contains("collapsed") ? "▼" : "▲";
+    });
+});
+</script>
 {% endblock %}

@@ -1,134 +1,164 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<h2>Mes Équipes</h2>
+<div class="templates-page">
 
-<ul>
-    {% for team in teams %}
-        <li>
-            <a href="{% url 'users:team_detail' team.id %}">
-                <strong>{{ team.name }}</strong> 
-            </a>
-            
-            (Chef : {{ team.leader.first_name|default:"Inconnu" }}) 
-        </li>
-    {% empty %}
-        <li>Vous ne faites partie d'aucune équipe pour le moment.</li>
-    {% endfor %}
-</ul> <div class="actions">
-    <a href="{% url 'users:create_team' %}" class="btn">
-        ➕ Créer une nouvelle équipe
-    </a>
+    <div class="page-header">
+        <h2>Mon Espace Personnel</h2>
+    </div>
+
+    <!-- === Section : Équipes === -->
+    <div class="collapse-container">
+        <div class="collapse-header">
+            <h3>Mes Équipes</h3>
+        </div>
+        <div class="collapse-body">
+            {% if teams %}
+                <ul class="team-list">
+                    {% for team in teams %}
+                        <li>
+                            <a href="{% url 'users:team_detail' team.id %}">
+                                <strong>{{ team.name }}</strong>
+                            </a>
+                            <span class="text-muted">(Chef : {{ team.leader.first_name|default:"Inconnu" }})</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="empty-row">Vous ne faites partie d'aucune équipe pour le moment.</p>
+            {% endif %}
+            <div class="actions">
+                <a href="{% url 'users:create_team' %}" class="btn btn-success">
+                    Créer une nouvelle équipe
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- === Section : Collections de plasmides === -->
+    <div class="collapse-container">
+        <div class="collapse-header">
+            <h3>Mes Collections de Plasmides</h3>
+        </div>
+        <div class="collapse-body templates-table">
+            {% if plasmid_collections %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Description</th>
+                            <th>Plasmides</th>
+                            <th>Date de création</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for collection in plasmid_collections %}
+                        <tr>
+                            <td><strong>{{ collection.name }}</strong></td>
+                            <td>{{ collection.description|truncatewords:10 }}</td>
+                            <td>{{ collection.plasmides.count }}</td>
+                            <td>{{ collection.created_at|date:"d/m/Y H:i" }}</td>
+                            <td class="table-actions">
+                                <a href="{{ collection.plasmid_archive.url }}" class="btn-icon btn-info" title="Télécharger">Télécharger</a>
+                                <a href="{% url 'users:delete_collection' collection.id %}" class="btn-icon btn-danger" title="Supprimer" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette collection ?');">Supprimer</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="empty-row">Aucune collection de plasmides créée pour le moment.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- === Section : Fichiers de correspondance === -->
+    <div class="collapse-container">
+        <div class="collapse-header">
+            <h3>Mes Tables de Correspondance</h3>
+        </div>
+        <div class="collapse-body templates-table">
+            {% if mapping_templates %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Description</th>
+                            <th>Date de création</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mapping in mapping_templates %}
+                        <tr>
+                            <td><strong>{{ mapping.name }}</strong></td>
+                            <td>{{ mapping.description|truncatewords:10 }}</td>
+                            <td>{{ mapping.created_at|date:"d/m/Y H:i" }}</td>
+                            <td class="table-actions">
+                                <a href="{{ mapping.mapping_file.url }}" class="btn-icon btn-info" title="Télécharger">Télécharger</a>
+                                <a href="{% url 'users:delete_mapping' mapping.id %}" class="btn-icon btn-danger" title="Supprimer" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?');">Supprimer</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="empty-row">Aucun fichier de correspondance créé pour le moment.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- === Section : Templates publiés === -->
+    <div class="collapse-container">
+        <div class="collapse-header">
+            <h3>Mes Templates Publiés</h3>
+        </div>
+        <div class="collapse-body templates-table">
+            {% if published_templates %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Description</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in published_templates %}
+                        <tr>
+                            <td><strong>{{ t.name }}</strong></td>
+                            <td>{{ t.description|truncatewords:10 }}</td>
+                            <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
+                            <td class="table-actions">
+                                <a href="{% url 'templates:download_template' t.id %}" class="btn-icon btn-info" title="Télécharger">Télécharger</a>
+                                <a href="{% url 'templates:dashboard' %}?highlight={{ t.id }}" class="btn-icon btn-primary" title="Voir sur le dashboard">Voir</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="empty-row">Aucun template publié pour le moment.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- === Suppression du compte === -->
+    <div class="collapse-container" style="margin-top: 2rem;">
+        <div class="collapse-header" style="background-color: #fdecea; border-color: #f5c2c7;">
+            <h3 style="color: #b91c1c;">Suppression du Compte</h3>
+        </div>
+        <div class="collapse-body">
+            <form action="{% url 'users:delete_user' user.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible.')">
+                {% csrf_token %}
+                <button type="submit" class="btn-icon btn-danger">
+                    Supprimer mon compte
+                </button>
+            </form>
+        </div>
+    </div>
+
 </div>
-
-<hr>
-
-<h2>Mes Collections de Plasmides</h2>
-
-{% if plasmid_collections %}
-    <div class="collections-section">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nom de la collection</th>
-                    <th>Description</th>
-                    <th>Plasmides</th>
-                    <th>Date de création</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for collection in plasmid_collections %}
-                <tr>
-                    <td><strong>{{ collection.name }}</strong></td>
-                    <td>{{ collection.description|truncatewords:10 }}</td>
-                    <td>{{ collection.plasmides.count }}</td>
-                    <td>{{ collection.created_at|date:"d/m/Y H:i" }}</td>
-                    <td>
-                        <a href="{{ collection.plasmid_archive.url }}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
-                        <a href="{% url 'users:delete_collection' collection.id %}" class="btn btn-sm btn-danger" title="Supprimer" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette collection ?');">🗑️</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-{% else %}
-    <p>Aucune collection de plasmides créée pour le moment.</p>
-{% endif %}
-
-<hr>
-
-<h2>Mes Fichiers de Correspondance</h2>
-
-{% if mapping_templates %}
-    <div class="mappings-section">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nom du fichier</th>
-                    <th>Description</th>
-                    <th>Date de création</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for mapping in mapping_templates %}
-                <tr>
-                    <td><strong>{{ mapping.name }}</strong></td>
-                    <td>{{ mapping.description|truncatewords:10 }}</td>
-                    <td>{{ mapping.created_at|date:"d/m/Y H:i" }}</td>
-                    <td>
-                        <a href="{{ mapping.mapping_file.url }}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
-                        <a href="{% url 'users:delete_mapping' mapping.id %}" class="btn btn-sm btn-danger" title="Supprimer" onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce fichier ?');">🗑️</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-{% else %}
-    <p>Aucun fichier de correspondance créé pour le moment.</p>
-{% endif %}
-
-<hr>
-
-<h2>Mes Templates Publiés</h2>
-
-{% if published_templates %}
-    <div class="published-templates">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nom du Template</th>
-                    <th>Description</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in published_templates %}
-                <tr>
-                    <td><strong>{{ t.name }}</strong></td>
-                    <td>{{ t.description|truncatewords:10 }}</td>
-                    <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
-                    <td>
-                        <a href="{% url 'templates:download_template' t.id %}" class="btn btn-sm btn-info" title="Télécharger">📥</a>
-                        <a href="{% url 'templates:dashboard' %}?highlight={{ t.id }}" class="btn btn-sm btn-secondary" title="Voir sur le dashboard">🔎</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-{% else %}
-    <p>Aucun template publié pour le moment.</p>
-{% endif %}
-
-<form action="{% url 'users:delete_user' user.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible.')">
-            {% csrf_token %}
-            <button type="submit" class="btn-outline-danger" style="padding: 5px 10px; font-size: 0.8rem; background-color: #8B0000; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                Supprimer l'utilisateur
-            </button>
-        </form>
 {% endblock %}

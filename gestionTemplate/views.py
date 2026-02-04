@@ -1212,20 +1212,86 @@ def plasmid_search(request):
         # -------------------------------
         # Collections personnelles
         # -------------------------------
-        from users.models import Seqcollection
+        my_collections_qs = Seqcollection.objects.filter(uploaded_by=request.user).order_by('-created_at')
+        collections_with_plasmids = []
 
-        my_collections = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
-        context['my_collections'] = my_collections
+        def extract_plasmids_from_zip(zip_path):
+            results = []
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    for f in zf.namelist():
+                        if f.lower().endswith(('.gb', '.gbk')):
+                            try:
+                                with zf.open(f) as gb_file:
+                                    text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                                    for record in SeqIO.parse(text_stream, "genbank"):
+                                        # On prend le nom du fichier pour éviter "exported"
+                                        name = f.split('/')[-1].rsplit('.', 1)[0]  
+                                        results.append({
+                                            "name": name,
+                                            "organism": record.annotations.get("organism", ""),
+                                            "length": len(record.seq)
+                                        })
+                            except Exception as e:
+                                results.append({"name": f"{f} (Erreur parsing: {e})"})
+            except Exception as e:
+                results.append({"name": f"Erreur lecture archive : {e}"})
+            return results
+
+        for c in my_collections_qs:
+            plasmids = []
+            if c.fichier:
+                plasmids = extract_plasmids_from_zip(c.fichier.path)
+            collections_with_plasmids.append({
+                "collection": c,
+                "plasmids": plasmids
+            })
+
+        context['my_collections'] = collections_with_plasmids
+
 
         # -------------------------------
         # Collections des équipes
         # -------------------------------
         teams = request.user.equipes_membres.all()
-        team_collections = Seqcollection.objects.filter(equipe__in=teams).order_by('-created_at')
+        team_collections_qs = Seqcollection.objects.filter(equipe__in=teams).order_by('-created_at')
 
         query_name = request.GET.get('name', '').strip()
         if query_name:
-            team_collections = team_collections.filter(name__icontains=query_name)
+            team_collections_qs = team_collections_qs.filter(name__icontains=query_name)
+
+        # Fonction pour extraire plasmides depuis un ZIP
+        def extract_plasmids_from_zip(zip_path):
+            results = []
+            try:
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    for f in zf.namelist():
+                        if f.lower().endswith(('.gb', '.gbk')):
+                            try:
+                                with zf.open(f) as gb_file:
+                                    text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                                    for record in SeqIO.parse(text_stream, "genbank"):
+                                        results.append({
+                                            "name": record.name,
+                                            "organism": record.annotations.get("organism", ""),
+                                            "length": len(record.seq)
+                                        })
+                            except Exception as e:
+                                results.append({"name": f"{f} (Erreur parsing: {e})"})
+            except Exception as e:
+                results.append({"name": f"Erreur lecture archive : {e}"})
+            return results
+
+        # Préparer les collections avec leurs plasmides
+        team_collections = []
+        for c in team_collections_qs:
+            plasmids = []
+            if c.fichier:
+                plasmids = extract_plasmids_from_zip(c.fichier.path)
+            team_collections.append({
+                "collection": c,
+                "plasmids": plasmids
+            })
 
         context['team_collections'] = team_collections
 
@@ -1568,3 +1634,31 @@ def download_my_collection(request, collection_id):
         return response
     except (FileNotFoundError, ValueError):
         raise Http404("Le fichier est introuvable sur le serveur.")
+
+def download_single_plasmid(request, collection_id, plasmid_name):
+    try:
+        collection = Seqcollection.objects.get(id=collection_id)
+    except Seqcollection.DoesNotExist:
+        raise Http404("Collection non trouvée")
+
+    if not collection.fichier:
+        raise Http404("Pas de fichier ZIP associé à cette collection")
+
+    # Ouvrir le ZIP et chercher le plasmide demandé
+    zip_path = collection.fichier.path
+    with zipfile.ZipFile(zip_path, 'r') as zf:
+        matched_file = None
+        for f in zf.namelist():
+            if f.lower().endswith(('.gb', '.gbk')) and plasmid_name.lower() in f.lower():
+                matched_file = f
+                break
+
+        if not matched_file:
+            raise Http404("Plasmide non trouvé dans le ZIP")
+
+        # Lire le fichier et le renvoyer
+        with zf.open(matched_file) as file_data:
+            data = file_data.read()
+            response = HttpResponse(data, content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{os.path.basename(matched_file)}"'
+            return response

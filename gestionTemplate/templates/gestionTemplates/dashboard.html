@@ -3,42 +3,27 @@
 {% block content %}
 <div class="templates-page">
 
-    <style>
-        /* Align actions column to the right and style the action group */
-        .templates-table table td.actions-cell { text-align: right; vertical-align: middle; width: 1%; white-space: nowrap; }
-        .table-actions { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; }
-        .table-actions .btn { margin: 0; padding: 0.35rem 0.55rem; }
-        /* Prevent the actions column from being centered on small screens */
-        @media (max-width: 576px) {
-            .templates-table table td.actions-cell { text-align: right; }
-            .table-actions { gap: 0.25rem; }
-        }
-    </style>
-
     <header class="page-header">
         <h2>Mes Templates de Campagne</h2>
-        <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template</a>
+        <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'templates:create_template' %}" class="btn btn-success">Nouveau Template</a>
 
-        <form method="post" enctype="multipart/form-data" id="upload-form">
-            {% csrf_token %}
-            
-            <input type="file" name="fichier" id="id_fichier" style="display: none;" onchange="this.form.submit()">
-            
-            <button type="button" onclick="document.getElementById('id_fichier').click()" class="mon-style-bouton">
-                Choisir et Envoyer le fichier
-            </button>
-        </form>
+            <form method="post" enctype="multipart/form-data" id="upload-form" class="inline-form">
+                {% csrf_token %}
+                <input type="file" name="fichier" id="id_fichier" class="input-file-hidden" onchange="this.form.submit()">
+                <label for="id_fichier" class="custom-upload-btn">Choisir un fichier</label>
+            </form>
 
-        {% if user.is_authenticated %}
-            <button class="btn btn-primary" id="openSearchModalBtn">
-                Ajouter un template public
-            </button>
-        {% endif %}
+            {% if user.is_authenticated %}
+                <button class="btn btn-primary" id="openSearchModalBtn">Ajouter un template public</button>
+            {% endif %}
+        </div>
     </header>
 
-    <!-- Modal de recherche de templates publics -->
+    <!-- === MODAL : Recherche de templates publics === -->
     <dialog id="searchTemplateModal">
         <div class="modal-body">
+            <h3 style="margin-bottom:10px; color:#003b66;">Rechercher un template public</h3>
             <input type="text" 
                 name="q" 
                 placeholder="Rechercher un template..."
@@ -47,109 +32,130 @@
                 hx-target="#templateSearchResults"
                 hx-indicator="#search-spinner">
             
-            <div id="search-spinner" class="htmx-indicator" style="font-size: 0.8rem; color: #64748b;">
+            <div id="search-spinner" class="htmx-indicator" style="font-size: 0.85rem; color: #64748b;">
                 Recherche en cours...
             </div>
 
-            <div id="templateSearchResults">
-                </div>
+            <div id="templateSearchResults"></div>
         </div>
 
         <button class="close-btn" onclick="this.closest('dialog').close()">Fermer</button>
     </dialog>
 
-    <!-- Table des templates -->
+    <!-- === TABLE DES TEMPLATES === -->
     <section class="templates-table">
-        <table>
-            <thead>
-                <tr>
-                    <th>Nom du Template</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for t in liste_templates %}
-                <tr>
-                    <td title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
-                    <td class="actions-cell">
-                        <div class="table-actions">
-                            <a href="{% url 'templates:download_template' t.id %}" class="btn btn-icon btn-info" title="Télécharger">📥</a>
-                            <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-icon btn-warning" title="Modifier">✏️</a>
-                            <a href="{% url 'templates:simulate' %}" class="btn btn-icon btn-primary" title="Simuler">🚀</a>
-
-                            {% if t.isPublic %}
-                                <span class="badge bg-success">Public</span>
-                            {% endif %}
-
-                            <a href="{% url 'templates:delete_template' t.id %}" 
-                               class="btn btn-icon btn-danger"
-                               onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
-                               title="Supprimer">🗑️</a>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="3" class="empty-row">Aucun template créé.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="collapse-container">
+            <div class="collapse-header">
+                <h3>Mes Templates</h3>
+                <span class="collapse-toggle">▼</span>
+            </div>
+            <div class="collapse-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom du Template</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in liste_templates %}
+                        <tr>
+                            <td title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
+                            <td class="actions-cell">
+                                <div class="table-actions">
+                                    <a href="{% url 'templates:download_template' t.id %}" class="btn-icon btn-info" title="Télécharger">
+                                        Télécharger
+                                    </a>
+                                    <a href="{% url 'templates:edit_template' t.id %}" class="btn-icon btn-warning" title="Modifier">
+                                        Modifier
+                                    </a>
+                                    <a href="{% url 'templates:simulate' %}" class="btn-icon btn-primary" title="Simuler">
+                                        Simuler
+                                    </a>
+                                    {% if t.isPublic %}
+                                        <span class="status-badge done">Public</span>
+                                    {% endif %}
+                                    <a href="{% url 'templates:delete_template' t.id %}" 
+                                       class="btn-icon btn-danger"
+                                       onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
+                                       title="Supprimer">
+                                       Supprimer
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="empty-row">Aucun template créé pour le moment.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
 
-
+    <!-- === SECTION : Anciennes simulations === -->
     <section class="simulations-section">
-        <h3>Mes anciennes simulations</h3>
-        {% if previous_sim %}
-        <ul class="simulation-list">
-            {% for campaign in previous_sim %}
-            <li>
-                <div class="sim-header">
-                    <div>
-                        <strong>{{ campaign.name }}</strong>
-                        <span class="status-badge {{ campaign.status }}">
-                            {{ campaign.get_status_display }}
-                        </span><br>
-                        <small>{{ campaign.created_at|date:"d/m/Y H:i" }}</small>
-                    </div>
-                    <div class="sim-actions">
-
-                        {% if campaign.result_file %}
-                            <a href="{{ campaign.result_file.url }}" class="btn btn-primary">📥 Résultat</a>
-                            <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-secondary">Visualiser les plasmides</a>
-                            {% if campaign.enzyme and campaign.status == 'done' %}
-                                <a href="{% url 'templates:campaign_digestion' campaign.id %}" class="btn btn-secondary">Visualiser les gels et dilutions</a>
-                            {% endif %}
-                            <a href="{% url 'templates:delete_campaign' campaign.id %}" 
-                               class="btn btn-icon btn-danger"
-                               onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce template ?');"
-                               title="Supprimer">🗑️</a>
-                        {% endif %}
-
-                        {% if campaign.status == 'failed' %}
-                            <button class="btn btn-outline btn-danger" title="{{ campaign.error_message }}">?</button>
-                        {% endif %}
-                    </div>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-            <p class="empty-row">Aucune simulation précédente.</p>
-        {% endif %}
+        <div class="collapse-container">
+            <div class="collapse-header">
+                <h3>Mes anciennes simulations</h3>
+                <span class="collapse-toggle">▼</span>
+            </div>
+            <div class="collapse-body">
+                {% if previous_sim %}
+                <ul class="simulation-list">
+                    {% for campaign in previous_sim %}
+                    <li>
+                        <div class="sim-header">
+                            <div>
+                                <strong>{{ campaign.name }}</strong>
+                                <span class="status-badge {{ campaign.status }}">{{ campaign.get_status_display }}</span><br>
+                                <small>{{ campaign.created_at|date:"d/m/Y H:i" }}</small>
+                            </div>
+                            <div class="sim-actions">
+                                {% if campaign.result_file %}
+                                    <a href="{{ campaign.result_file.url }}" class="btn btn-primary">Résultat</a>
+                                    <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-secondary">Visualiser les plasmides</a>
+                                    {% if campaign.enzyme and campaign.status == 'done' %}
+                                        <a href="{% url 'templates:campaign_digestion' campaign.id %}" class="btn btn-secondary">Visualiser les gels</a>
+                                    {% endif %}
+                                    <a href="{% url 'templates:delete_campaign' campaign.id %}" 
+                                       class="btn-icon btn-danger"
+                                       onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette simulation ?');"
+                                       title="Supprimer">
+                                       Supprimer
+                                    </a>
+                                {% endif %}
+                                {% if campaign.status == 'failed' %}
+                                    <button class="btn btn-outline btn-danger" title="{{ campaign.error_message }}">Détails</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                    <p class="empty-row">Aucune simulation précédente.</p>
+                {% endif %}
+            </div>
+        </div>
     </section>
 </div>
 
+<!-- === Scripts === -->
 <script>
+    // Gestion des sections pliables
+    document.querySelectorAll(".collapse-header").forEach(header => {
+        header.addEventListener("click", () => {
+            header.nextElementSibling.classList.toggle("collapsed");
+        });
+    });
+
+    // Gestion du modal de recherche
     const modal = document.getElementById('searchTemplateModal');
     const openBtn = document.getElementById('openSearchModalBtn');
-
-    openBtn.addEventListener('click', () => {
-        modal.showModal();
-    });
-
-    // Fermer si on clique à l'extérieur de la modal
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.close();
-    });
+    if (openBtn) {
+        openBtn.addEventListener('click', () => modal.showModal());
+        modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
+    }
 </script>
-
 {% endblock %}

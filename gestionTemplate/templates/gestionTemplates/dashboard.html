@@ -3,6 +3,18 @@
 {% block content %}
 <div class="templates-page">
 
+    <style>
+        /* Align actions column to the right and style the action group */
+        .templates-table table td.actions-cell { text-align: right; vertical-align: middle; width: 1%; white-space: nowrap; }
+        .table-actions { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; }
+        .table-actions .btn { margin: 0; padding: 0.35rem 0.55rem; }
+        /* Prevent the actions column from being centered on small screens */
+        @media (max-width: 576px) {
+            .templates-table table td.actions-cell { text-align: right; }
+            .table-actions { gap: 0.25rem; }
+        }
+    </style>
+
     <header class="page-header">
         <h2>Mes Templates de Campagne</h2>
         <a href="{% url 'templates:create_template' %}" class="btn btn-primary">+ Nouveau Template</a>
@@ -59,7 +71,7 @@
                 {% for t in liste_templates %}
                 <tr>
                     <td title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
-                    <td>
+                    <td class="actions-cell">
                         <div class="table-actions">
                             <a href="{% url 'templates:download_template' t.id %}" class="btn btn-icon btn-info" title="Télécharger">📥</a>
                             <a href="{% url 'templates:edit_template' t.id %}" class="btn btn-icon btn-warning" title="Modifier">✏️</a>
@@ -104,7 +116,7 @@
                             <a href="{{ campaign.result_file.url }}" class="btn btn-primary">📥 Résultat</a>
                             <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-secondary">Visualiser les plasmides</a>
                             {% if campaign.enzyme and campaign.status == 'done' %}
-                                <a href="{% url 'templates:campaign_digestion' campaign.id %}" class="btn btn-secondary" title="Afficher le Western Blot">Gel d'électrophorèse</a>
+                                <a href="{% url 'templates:campaign_digestion' campaign.id %}" class="btn btn-secondary">Visualiser les gels et dilutions</a>
                             {% endif %}
                             <a href="{% url 'templates:delete_campaign' campaign.id %}" 
                                class="btn btn-icon btn-danger"

@@ -1,9 +1,13 @@
 {% extends 'layout.html' %}
+{% load util_extras %}
+
+
 
 {% block content %}
+{% block title %}Western blot de la Digestion et de la PCR, ainsi que les dilutions{% endblock %}
 <div class="digestion-page">
     <header class="page-header">
-        <h2>Western blot de digestion - {{ campaign.name }}</h2>
+        <h1 class="mb2">Simulation - {{ campaign.name }}</h2>
     </header>
 
     {% if error %}
@@ -11,13 +15,130 @@
         <a href="{% url 'templates:dashboard' %}" class="btn">← Retour</a>
     {% else %}
         <p>Enzyme utilisée : <strong>{{ campaign.enzyme }}</strong></p>
-        <div class="image-wrapper" style="max-width:100%;">
-            <img src="{{ image_url }}" alt="Blot de digestion" style="max-width:100%; height:auto; border:1px solid #ddd; padding:8px; background:#fff;">
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="images-grid">
+                    {% for img in images %}
+                    <div class="image-card" style="margin-bottom:1rem;">
+                        <h4>{% image_title img.label img.filename %}</h4>
+                        <img src="{{ img.url }}" alt="{{ img.label }}" style="max-width:100%; height:auto; border:1px solid #ddd; padding:8px; background:#fff;">
+                        <p class="mt-2">
+                            <a href="{{ img.url }}&download=1" class="btn btn-primary">Télécharger l'image</a>
+                        </p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                {% if dilutions %}
+                <h3>Dilutions</h3>
+
+                <div>
+                    <label for="dilution-select">Choisir jeu de données :</label>
+                    <select id="dilution-select" class="form-control">
+                        {% for key, info in dilutions.items %}
+                        <option value="{{ key }}">{{ info.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+
+                <p style="margin-top:0.5rem;">
+                    {% for key, info in dilutions.items %}
+                        <a href="{{ info.download_url }}" class="btn btn-sm btn-outline-primary">Télécharger {{ info.label }} (CSV)</a>
+                    {% endfor %}
+                </p>
+
+                {% endif %}
+            </div>
         </div>
-        <p class="mt-2">
-            <a href="{{ image_url }}" download class="btn btn-primary">Télécharger l'image</a>
-            <a href="{% url 'templates:dashboard' %}" class="btn">← Retour</a>
-        </p>
+
+        {% if dilutions %}
+        <hr>
+        <div class="dilution-tables">
+            {% for key, info in dilutions.items %}
+            <h4 id="table-title-{{ key }}">{{ info.label }}</h4>
+            <div class="table-responsive" style="overflow-x:auto;">
+            <table id="table-{{ key }}" class="display" style="width:100%">
+                <thead>
+                    <tr>
+                        {% for col in info.columns %}
+                            <th>{{ col }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in info.data %}
+                    <tr>
+                        {% for col in info.columns %}
+                            <td>{{ row|get_item:col }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            <br>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <a href="{% url 'templates:dashboard' %}" class="btn">← Retour</a>
+    {% endif %}
+
+    {% if dilutions %}
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+    <style>
+        .dilution-tables .table-responsive { max-width:100%; }
+        .dilution-tables table { width:100%; table-layout: auto; }
+
+        /* DataTables pagination styling to better match page background */
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            background-color: transparent !important;
+            color: #333 !important;
+            border: 1px solid #e6e6e6 !important;
+            box-shadow: none !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #f3f4f6 !important;
+            color: #111 !important;
+        }
+    </style>
+
+    <script>
+        $(document).ready(function() {
+            {% for key, info in dilutions.items %}
+                var tbl = $('#table-{{ key }}').DataTable({
+                    paging: true,
+                    searching: true,
+                    ordering: true,
+                    responsive: true,
+                    scrollX: true,
+                    autoWidth: false,
+                    lengthMenu: [10, 25, 50]
+                });
+            {% endfor %}
+
+            $('#dilution-select').on('change', function(){
+                var key = $(this).val();
+                {% for key, info in dilutions.items %}
+                    $('#table-{{ key }}_wrapper').hide();
+                {% endfor %}
+                $('#table-' + key + '_wrapper').show();
+            });
+
+            var initial = $('#dilution-select').val();
+            {% for key, info in dilutions.items %}
+                if ('{{ key }}' !== initial) $('#table-{{ key }}_wrapper').hide();
+            {% endfor %}
+        });
+    </script>
     {% endif %}
 </div>
 {% endblock %}

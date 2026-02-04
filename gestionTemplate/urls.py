@@ -19,6 +19,7 @@ urlpatterns = [
     path('simulate/view_plasmid/<int:campaign_id>/', views.user_view_plasmid, name='user_view_plasmid'),
     path('simulate/<int:campaign_id>/digestion/', views.campaign_digestion, name='campaign_digestion'),
     path('simulate/<int:campaign_id>/digestion/image/', views.campaign_digestion_image, name='campaign_digestion_image'),
+    path('simulate/<int:campaign_id>/dilutions/download/', views.campaign_dilution_download, name='campaign_dilution_download'),
     path('search/', views.plasmid_search, name='search_templates'),
     path('search-public/', views.search_public_templates, name='search_public_templates'),
     path('import-public-templates/<int:template_id>/', views.import_public_templates, name='import_public_templates'),

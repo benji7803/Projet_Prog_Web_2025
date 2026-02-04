@@ -52,7 +52,6 @@
             <thead>
                 <tr>
                     <th>Nom du Template</th>
-                    <th>Fichier actuel</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -60,7 +59,6 @@
                 {% for t in liste_templates %}
                 <tr>
                     <td title="{{ t.name }}"><strong>{{ t.name }}</strong></td>
-                    <td title="{{ t.display_name }}">{{ t.display_name }}</td>
                     <td>
                         <div class="table-actions">
                             <a href="{% url 'templates:download_template' t.id %}" class="btn btn-icon btn-info" title="Télécharger">📥</a>
@@ -106,7 +104,7 @@
                             <a href="{{ campaign.result_file.url }}" class="btn btn-primary">📥 Résultat</a>
                             <a href="{% url 'templates:user_view_plasmid' campaign.id %}" class="btn btn-secondary">Visualiser les plasmides</a>
                             {% if campaign.enzyme and campaign.status == 'done' %}
-                                <a href="{% url 'templates:campaign_digestion' campaign.id %}" class="btn btn-secondary" title="Afficher le blot de digestion">Gel d'électrophorèse</a>
+                                <a href="{% url 'templates:campaign_digestion' campaign.id %}" class="btn btn-secondary" title="Afficher le Western Blot">Gel d'électrophorèse</a>
                             {% endif %}
                             <a href="{% url 'templates:delete_campaign' campaign.id %}" 
                                class="btn btn-icon btn-danger"

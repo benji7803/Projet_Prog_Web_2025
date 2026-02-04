@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, HttpResponse, Http404
 from django.urls import reverse
+from urllib.parse import quote, unquote
 from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage
@@ -21,6 +22,7 @@ import pathlib
 import zipfile
 import tarfile
 import shutil
+import json
 
 # insillyclo
 from insillyclo.template_generator import make_template
@@ -827,7 +829,7 @@ def user_view_plasmid(request, campaign_id):
 
 
 def campaign_digestion(request, campaign_id):
-    """Page HTML affichant le blot de digestion si présent dans le zip de résultats."""
+    """Page HTML affichant le Western Blot, la PCR et les dilutions si présentes dans le zip."""
     campaign = get_object_or_404(Campaign, id=campaign_id)
 
     # Vérifier qu'une enzyme a été sélectionnée lors de la simulation
@@ -844,24 +846,111 @@ def campaign_digestion(request, campaign_id):
         })
 
     try:
+        images = []
+        dilutions = {}
+        # temporary buckets for ordering
+        global_dig = []
+        global_pcr = []
+        per_dig = []
+        per_pcr = []
+        other_images = []
+
         with zipfile.ZipFile(campaign.result_file.path, 'r') as z:
-            found = None
             for f in z.namelist():
-                if os.path.basename(f).lower() == 'digestion.png':
-                    found = f
-                    break
+                name = os.path.basename(f)
+                lower = name.lower()
 
-            if not found:
-                return render(request, 'gestionTemplates/digestion.html', {
-                    'campaign': campaign,
-                    'error': "Aucun blot de digestion (digestion.png) trouvé dans les résultats."
-                })
+                # Images categorization
+                if lower.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+                    if 'digestion' in lower:
+                        # Global digestion.png preferred first
+                        if os.path.basename(f).lower() == 'digestion.png':
+                            global_dig.append((f, name))
+                        else:
+                            per_dig.append((f, name))
+                    elif 'pcr' in lower:
+                        if os.path.basename(f).lower() == 'pcr.png':
+                            global_pcr.append((f, name))
+                        else:
+                            per_pcr.append((f, name))
+                    else:
+                        other_images.append((f, name))
 
-            image_url = reverse('templates:campaign_digestion_image', args=[campaign.id])
+                # Dilution JSON files
+                if lower.endswith('.json') and 'dilution' in lower:
+                    # Determine type key
+                    if '10x' in lower:
+                        key = '10x'
+                        pretty = 'Dilution 10x'
+                    elif 'direct' in lower or 'direct' in name.lower():
+                        key = 'direct'
+                        pretty = 'Dilution Direct'
+                    else:
+                        key = 'other'
+                        pretty = name
+
+                    try:
+                        raw = z.read(f)
+                        data = json.loads(raw.decode('utf-8'))
+                        # compute columns (ordered)
+                        cols = set()
+                        for r in data:
+                            cols.update(r.keys())
+                        # prefer an order: plasmid_id, h2o_volume, buffer, then others
+                        ordered = []
+                        for pref in ('plasmid_id', 'h2o_volume', 'buffer'):
+                            if pref in cols:
+                                ordered.append(pref)
+                                cols.remove(pref)
+                        ordered.extend(sorted(cols))
+
+                        download_url = reverse('templates:campaign_dilution_download', args=[campaign.id]) + f'?type={key}'
+
+                        dilutions[key] = {
+                            'label': pretty,
+                            'data': data,
+                            'columns': ordered,
+                            'download_url': download_url,
+                        }
+                    except Exception:
+                        # ignore malformed JSON for now
+                        continue
+
+        # Build ordered images list: global digestion, global pcr, per-plasmid digestion, per-plasmid pcr, then others
+        def mkitem(tup, kind_hint=None):
+            f, name = tup
+            lower = name.lower()
+            if 'digestion' in lower:
+                label = 'Western Blot' if kind_hint is None else kind_hint
+            elif 'pcr' in lower:
+                label = 'PCR'
+            else:
+                label = name
+            url = reverse('templates:campaign_digestion_image', args=[campaign.id]) + '?file=' + quote(f)
+            return {'label': label, 'url': url, 'filename': name}
+
+        images.extend([mkitem(x) for x in global_dig])
+        images.extend([mkitem(x) for x in global_pcr])
+        images.extend([mkitem(x, kind_hint='Western Blot') for x in per_dig])
+        images.extend([mkitem(x) for x in per_pcr])
+        images.extend([mkitem(x) for x in other_images])
+
+        if not images and not dilutions:
             return render(request, 'gestionTemplates/digestion.html', {
                 'campaign': campaign,
-                'image_url': image_url
+                'error': "Aucune image ou dilution pertinente trouvée dans les résultats."
             })
+
+        # Prepare a JSON dump for client-side charts
+        dilutions_json = {k: v['data'] for k, v in dilutions.items()}
+
+        return render(request, 'gestionTemplates/digestion.html', {
+            'campaign': campaign,
+            'images': images,
+            'dilutions': dilutions,
+            'dilutions_json': json.dumps(dilutions_json),
+        })
+
     except zipfile.BadZipFile:
         return render(request, 'gestionTemplates/digestion.html', {
             'campaign': campaign,
@@ -870,25 +959,102 @@ def campaign_digestion(request, campaign_id):
 
 
 def campaign_digestion_image(request, campaign_id):
-    """Retourne l'image PNG directement depuis l'archive de résultats."""
+    """Retourne l'image depuis l'archive de résultats. Reçoit un paramètre GET 'file' (encodé)."""
     campaign = get_object_or_404(Campaign, id=campaign_id)
 
     if not campaign.result_file:
         raise Http404
 
+    file_param = request.GET.get('file')
+    if not file_param:
+        raise Http404
+
+    file_in_zip = unquote(file_param)
+
     try:
         with zipfile.ZipFile(campaign.result_file.path, 'r') as z:
-            found = None
-            for f in z.namelist():
-                if os.path.basename(f).lower() == 'digestion.png':
-                    found = f
-                    break
+            namelist = z.namelist()
 
-            if not found:
+            # Accepter soit le chemin interne, soit seulement le basename
+            if file_in_zip not in namelist:
+                matches = [f for f in namelist if os.path.basename(f).lower() == os.path.basename(file_in_zip).lower()]
+                if matches:
+                    file_in_zip = matches[0]
+                else:
+                    raise Http404
+
+            data = z.read(file_in_zip)
+            ext = os.path.splitext(file_in_zip)[1].lower()
+            if ext == '.png':
+                ctype = 'image/png'
+            elif ext in ('.jpg', '.jpeg'):
+                ctype = 'image/jpeg'
+            elif ext == '.gif':
+                ctype = 'image/gif'
+            else:
+                ctype = 'application/octet-stream'
+
+            response = HttpResponse(data, content_type=ctype)
+            if request.GET.get('download') == '1':
+                response['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_in_zip)}"'
+            return response
+    except zipfile.BadZipFile:
+        raise Http404
+
+
+def campaign_dilution_download(request, campaign_id):
+    """Retourne un CSV généré à partir du fichier dilution (type=10x|direct|other) présent dans le zip de résultats."""
+    campaign = get_object_or_404(Campaign, id=campaign_id)
+
+    if not campaign.result_file:
+        raise Http404
+
+    dtype = request.GET.get('type')
+    if not dtype:
+        raise Http404
+
+    try:
+        with zipfile.ZipFile(campaign.result_file.path, 'r') as z:
+            matches = []
+            for f in z.namelist():
+                name = os.path.basename(f).lower()
+                if 'dilution' in name:
+                    if dtype == '10x' and '10x' in name:
+                        matches.append(f)
+                    elif dtype == 'direct' and 'direct' in name:
+                        matches.append(f)
+                    elif dtype == 'other' and '10x' not in name and 'direct' not in name:
+                        matches.append(f)
+
+            if not matches:
                 raise Http404
 
-            data = z.read(found)
-            return HttpResponse(data, content_type='image/png')
+            # Pick first match
+            target = matches[0]
+            raw = z.read(target)
+            data = json.loads(raw.decode('utf-8'))
+
+            # Build CSV
+            fieldnames = set()
+            for row in data:
+                fieldnames.update(row.keys())
+            # keep stable order
+            ordered = []
+            for pref in ('plasmid_id', 'h2o_volume', 'buffer'):
+                if pref in fieldnames:
+                    ordered.append(pref)
+                    fieldnames.remove(pref)
+            ordered.extend(sorted(fieldnames))
+
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=ordered)
+            writer.writeheader()
+            for row in data:
+                writer.writerow({k: row.get(k, '') for k in ordered})
+
+            resp = HttpResponse(output.getvalue(), content_type='text/csv')
+            resp['Content-Disposition'] = f'attachment; filename="{os.path.basename(target)}.csv"'
+            return resp
     except zipfile.BadZipFile:
         raise Http404
 

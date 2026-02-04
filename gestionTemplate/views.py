@@ -1388,3 +1388,17 @@ def download_plasmid(request):
 
     else:
         raise Http404("Paramètres manquants pour le téléchargement.")
+
+from django.http import FileResponse, Http404
+from users.models import Seqcollection
+
+def download_my_collection(request, collection_id):
+    collection = get_object_or_404(Seqcollection, id=collection_id, uploaded_by=request.user)
+    try:
+        file_handle = collection.fichier.open()
+        response = FileResponse(file_handle, as_attachment=True)
+        filename = collection.fichier.name.split('/')[-1]
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except (FileNotFoundError, ValueError):
+        raise Http404("Le fichier est introuvable sur le serveur.")

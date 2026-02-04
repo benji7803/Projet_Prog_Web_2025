@@ -622,3 +622,63 @@ body .dataTables_wrapper::after {
 .custom-upload-btn:hover {
     background-color: #0056b3;
 }
+/* --- Sous-onglets Recherche privée --- */
+.sub-tabs {
+    border: 1px solid #d1d5db; /* gris clair */
+    border-radius: 0.5rem; /* arrondi */
+    overflow: hidden;
+    background: #f9fafb;
+}
+
+.sub-tabs a {
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border-right: 1px solid #d1d5db;
+}
+
+.sub-tabs a:last-child {
+    border-right: none;
+}
+
+.sub-tabs a:hover {
+    background-color: #e5e7eb; /* gris hover */
+    color: #1e3a8a; /* bleu profond */
+}
+
+.sub-tabs a.bg-blue-600 {
+    background-color: #2563eb; /* bleu principal */
+    color: white !important;
+    border-right: 1px solid #2563eb;
+}
+
+.sub-tabs a.bg-blue-600:hover {
+    background-color: #1d4ed8; /* bleu foncé au survol */
+}
+
+/* --- Ajustement global --- */
+.templates-page h3, 
+.templates-page h4 {
+    color: #1e3a8a;
+    font-weight: 700;
+}
+
+.templates-table table th {
+    background-color: #f3f4f6;
+    color: #374151;
+    font-weight: 600;
+}
+
+.btn-success {
+    background-color: #16a34a;
+    color: white;
+    transition: background-color 0.2s ease;
+}
+
+.btn-success:hover {
+    background-color: #15803d;
+}
+
+.empty-row {
+    color: #6b7280;
+    font-style: italic;
+}

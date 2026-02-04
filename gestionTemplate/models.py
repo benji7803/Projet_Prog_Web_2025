@@ -256,21 +256,6 @@ class Campaign(models.Model):
     def __str__(self):
         return f"{self.name} ({self.pk})"
 
-# models.py
-from django.conf import settings  # ✅ à la place de l'ancien import
-
-class PublicationRequest(models.Model):
-    campaign = models.ForeignKey("Campaign", on_delete=models.CASCADE)
-    plasmid_name = models.CharField(max_length=255)
-    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    reviewed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="reviewed_requests"
-    )
-
 from django.db import models
 from django.conf import settings  # ✅ pour AUTH_USER_MODEL
 

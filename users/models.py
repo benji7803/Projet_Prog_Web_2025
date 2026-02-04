@@ -77,4 +77,8 @@ class Seqcollection(models.Model):
     fichier = models.FileField(upload_to='equipes/docs/', validators=[FileExtensionValidator(allowed_extensions=['zip'])])
     uploaded_by = models.ForeignKey(UserModel, on_delete=models.SET_NULL, null=True)
     is_validated = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)  # <-- champ ajouté
+
+    def __str__(self):
+        return f"{self.name} ({self.equipe.name})"
 

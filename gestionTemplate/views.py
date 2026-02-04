@@ -892,19 +892,19 @@ def campaign_digestion_image(request, campaign_id):
     except zipfile.BadZipFile:
         raise Http404
 
-
 def plasmid_search(request):
+
     privacy = request.GET.get('privacy', '')
     query_name = request.GET.get('name', '').lower().strip()
     query_organism = request.GET.get('organism', '').lower().strip()
     query_seq = request.GET.get('sequence', '').upper().strip()
     query_site = request.GET.get('site', '').lower().strip()
+    filter_type = request.GET.get('filter', 'public')  # 'public' ou 'mine'
 
     context = {}
-    from gestionTemplate.models import Plasmide as PublicPlasmide
 
     # -------------------------------
-    # Cas 1 : recherche Entrez
+    # Cas 1 : recherche Entrez (NCBI)
     # -------------------------------
     if privacy == "search_enter":
         name = request.GET.get('name', '').strip()
@@ -939,8 +939,8 @@ def plasmid_search(request):
         campaigns = Campaign.objects.filter(user=request.user).order_by('-created_at')
         campaigns_with_plasmids = []
 
-        # Précharger tous les noms publics pour optimiser
-        public_names = set(PublicPlasmide.objects.filter(dossier="public").values_list('name', flat=True))
+        # Précharger tous les noms publics pour optimisation
+        public_names = set(Plasmide.objects.filter(dossier="public").values_list('name', flat=True))
 
         for camp in campaigns:
             plasmids_in_archive = []
@@ -969,7 +969,6 @@ def plasmid_search(request):
                                 try:
                                     with zf.open(f) as gb_file:
                                         text_stream = TextIOWrapper(gb_file, encoding='utf-8')
-                                        # SeqIO.parse pour gérer plusieurs enregistrements
                                         for record in SeqIO.parse(text_stream, "genbank"):
                                             p = {
                                                 "name": record.name,
@@ -979,7 +978,6 @@ def plasmid_search(request):
                                                 "sites": [feat.qualifiers.get("gene",[None])[0] for feat in record.features if "gene" in feat.qualifiers]
                                             }
                                             if match_criteria(p):
-                                                # Détection public
                                                 p["is_public"] = p["name"] in public_names
                                                 results.append(p)
                                 except Exception as e:
@@ -988,10 +986,8 @@ def plasmid_search(request):
                     results.append({"name": f"Erreur lecture archive : {e}"})
                 return results
 
-            # Extraction archive
             if camp.plasmid_archive:
                 plasmids_in_archive = extract_plasmids_from_zip(camp.plasmid_archive.path)
-            # Extraction résultats
             if camp.result_file:
                 plasmids_in_results = extract_plasmids_from_zip(camp.result_file.path)
 
@@ -1003,13 +999,75 @@ def plasmid_search(request):
 
         context['campaigns_with_plasmids'] = campaigns_with_plasmids
 
+        # -------------------------------
+        # Banque publique pour l'onglet privé
+        # -------------------------------
+        public_plasmids_qs = Plasmide.objects.all()
+        if query_name:
+            public_plasmids_qs = public_plasmids_qs.filter(name__icontains=query_name)
+        if query_organism:
+            public_plasmids_qs = public_plasmids_qs.filter(organism__icontains=query_organism)
+        if query_seq:
+            public_plasmids_qs = public_plasmids_qs.filter(sequence__icontains=query_seq)
+        if query_site:
+            public_plasmids_qs = public_plasmids_qs.filter(features__icontains=query_site)
+
+        # Transformer features en labels affichables
+        public_plasmids = []
+        for p in public_plasmids_qs:
+            display_features = []
+            raw_features = getattr(p, 'features', None)
+
+            # Cas dict ou liste ou autre
+            lines = []
+            if isinstance(raw_features, dict) and 'raw' in raw_features:
+                lines = str(raw_features['raw']).splitlines()
+            elif isinstance(raw_features, list):
+                for f in raw_features:
+                    if isinstance(f, dict) and 'raw' in f:
+                        lines.extend(str(f['raw']).splitlines())
+                    elif isinstance(f, str):
+                        lines.extend(f.splitlines())
+            # else on ignore None ou autre type
+
+            for line in lines:
+                line = line.strip()
+                if line.startswith('/label='):
+                    display_features.append(line.replace('/label=', '').strip())
+                elif line.startswith('/allele='):
+                    display_features.append(line.replace('/allele=', '').strip())
+
+            p.display_features = ", ".join(display_features[:5])
+            public_plasmids.append(p)
+
+        context['public_plasmids'] = public_plasmids
+        context['filter_type'] = filter_type
+
+        # -------------------------------
+        # Collections personnelles
+        # -------------------------------
+        from users.models import Seqcollection
+
+        my_collections = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
+        context['my_collections'] = my_collections
+
+        # -------------------------------
+        # Collections des équipes
+        # -------------------------------
+        teams = request.user.equipes_membres.all()
+        team_collections = Seqcollection.objects.filter(equipe__in=teams).order_by('-created_at')
+
+        query_name = request.GET.get('name', '').strip()
+        if query_name:
+            team_collections = team_collections.filter(name__icontains=query_name)
+
+        context['team_collections'] = team_collections
+
     # -------------------------------
     # Cas 3 : recherche publique
     # -------------------------------
-    elif privacy == "public":
-        plasmides_qs = PublicPlasmide.objects.all()
-
-        # Filtrage dynamique
+    elif privacy == "public" or (privacy == "private" and filter_type == "public"):
+        plasmides_qs = Plasmide.objects.all()
         if query_name:
             plasmides_qs = plasmides_qs.filter(name__icontains=query_name)
         if query_organism:
@@ -1019,7 +1077,29 @@ def plasmid_search(request):
         if query_site:
             plasmides_qs = plasmides_qs.filter(features__icontains=query_site)
 
-        context['public_plasmids'] = plasmides_qs
+        public_plasmids = []
+        for p in plasmides_qs:
+            display_features = []
+            raw_features = getattr(p, 'features', None)
+            lines = []
+            if isinstance(raw_features, dict) and 'raw' in raw_features:
+                lines = str(raw_features['raw']).splitlines()
+            elif isinstance(raw_features, list):
+                for f in raw_features:
+                    if isinstance(f, dict) and 'raw' in f:
+                        lines.extend(str(f['raw']).splitlines())
+                    elif isinstance(f, str):
+                        lines.extend(f.splitlines())
+            for line in lines:
+                line = line.strip()
+                if line.startswith('/label='):
+                    display_features.append(line.replace('/label=', '').strip())
+                elif line.startswith('/allele='):
+                    display_features.append(line.replace('/allele=', '').strip())
+            p.display_features = ", ".join(display_features[:5])
+            public_plasmids.append(p)
+
+        context['public_plasmids'] = public_plasmids
 
     else:
         context['campaigns_with_plasmids'] = []
@@ -1141,6 +1221,7 @@ def user_view_plasmid_archive(request, campaign_id):
     })
 
 from django.contrib import messages
+from django.utils import timezone
 
 def make_public(request):
     if request.method == "POST" and request.user.is_authenticated:

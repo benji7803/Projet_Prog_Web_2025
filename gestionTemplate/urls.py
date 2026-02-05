@@ -30,11 +30,12 @@ urlpatterns = [
     path('plasmid/<int:plasmid_id>/', views.plasmid_detail, name='plasmid_detail'),
     path('download/my_collection/<int:collection_id>/', views.download_my_collection, name='download_my_collection'),
     path('collection/<int:collection_id>/plasmid/<str:plasmid_name>/download/', views.download_single_plasmid, name='download_single_plasmid'),
-    path('download_correspondance_table/<int:table_id>/', views.download_correspondance_table, name='download_correspondance_table'),
+    path('download_correspondance_table/<int:table_id>/', views.download_ct, name='download_ct'),
     path('search/plasmids/', views.plasmid_search, name='plasmid_search'),
     path('search/ct/', views.ct_search, name='ct_search'),
     path('search/templates/', views.template_search, name='template_search'),
     path('search/', views.search, name='search'),
+    path('request_table_public/', views.request_table_public, name='request_table_public'),
 ]
 
 if settings.DEBUG:

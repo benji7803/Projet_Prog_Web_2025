@@ -264,9 +264,18 @@ class Campaign(models.Model):
 from django.db import models
 from django.conf import settings  # ✅ pour AUTH_USER_MODEL
 
+from django.conf import settings
+
 class PublicationRequest(models.Model):
-    campaign = models.ForeignKey("Campaign", on_delete=models.CASCADE, null = True, blank = True)
-    plasmid_name = models.CharField(max_length=255)
+    campaign = models.ForeignKey("Campaign", on_delete=models.CASCADE, null=True, blank=True)
+    plasmid_name = models.CharField(max_length=255, blank=True, null=True)
+    table = models.ForeignKey(
+        "MappingTemplate",
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name="publication_requests"
+    )
     requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     status = models.CharField(
         max_length=20,
@@ -287,5 +296,10 @@ class PublicationRequest(models.Model):
         related_name="reviewed_requests",
     )
     notified = models.BooleanField(default=False)
+
     def __str__(self):
-        return f"Demande de publication : {self.plasmid_name} ({self.status})"
+        if self.plasmid_name:
+            return f"Demande de publication plasmide : {self.plasmid_name} ({self.status})"
+        if self.table:
+            return f"Demande de publication table : {self.table.name} ({self.status})"
+        return f"Demande de publication ({self.status})"

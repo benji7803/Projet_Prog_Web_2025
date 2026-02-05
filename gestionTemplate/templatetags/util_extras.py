@@ -41,3 +41,7 @@ def image_title(label, filename):
         return label
     except Exception:
         return label
+
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)

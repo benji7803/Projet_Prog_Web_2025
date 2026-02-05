@@ -23,16 +23,38 @@
     {% if filter_type == 'public' or not filter_type %}
         {% if public_tables %}
             {% for table in public_tables %}
-                <div class="collapse-container mb-4">
-                    <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center cursor-pointer">
-                        <h3>{{ table.name }}</h3>
-                        <span class="collapse-toggle">▼</span>
+                <div class="collapse-container mb-6 border rounded">
+                    <div class="collapse-header p-3 bg-gray-200 rounded-t flex justify-between items-center cursor-pointer">
+                        <h3 class="font-semibold">{{ table.name }}</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="collapse-toggle">▲</span>
+                            <a href="{% url 'templates:download_ct' table.id %}" class="btn btn-sm btn-primary">Télécharger</a>
+                        </div>
                     </div>
-                    <div class="collapse-body p-3 border border-t-0 rounded-b">
+                    <div class="collapse-body p-3 border-t">
                         <p>{{ table.description|default:"Aucune description." }}</p>
-                        <a href="{% url 'templates:download_ct' table.id %}" class="btn btn-sm btn-primary mt-2">
-                            Télécharger
-                        </a>
+                        {% if table.content %}
+                            <table class="display table-auto w-full mt-2">
+                                <thead>
+                                    <tr>
+                                        {% for col in table.columns %}
+                                            <th class="border px-2 py-1">{{ col }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in table.content %}
+                                        <tr>
+                                            {% for cell in row %}
+                                                <td class="border px-2 py-1">{{ cell }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>Aucun contenu disponible pour cette table.</p>
+                        {% endif %}
                     </div>
                 </div>
             {% endfor %}
@@ -47,29 +69,47 @@
     {% if filter_type == 'mine' %}
         {% if my_tables %}
             {% for table in my_tables %}
-                <div class="collapse-container mb-4">
-                    <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center cursor-pointer">
-                        <h3>{{ table.name }}</h3>
-                        <span class="collapse-toggle">▼</span>
-                    </div>
-                    <div class="collapse-body p-3 border border-t-0 rounded-b">
-                        <p>{{ table.description|default:"Aucune description." }}</p>
-                        <div class="flex gap-2 mt-2">
-                            <a href="{% url 'templates:download_ct' table.id %}" class="btn btn-sm btn-primary">
-                                Télécharger
-                            </a>
+                <div class="collapse-container mb-6 border rounded">
+                    <div class="collapse-header p-3 bg-gray-200 rounded-t flex justify-between items-center cursor-pointer">
+                        <h3 class="font-semibold">{{ table.name }}</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="collapse-toggle">▲</span>
+                            <a href="{% url 'templates:download_ct' table.id %}" class="btn btn-sm btn-primary">Télécharger</a>
                             {% if not table.is_public %}
-                                <form method="post" action="{% url 'templates:make_ct_public' %}">
+                                <form action="{% url 'templates:request_table_public' %}" method="post" class="inline-form">
                                     {% csrf_token %}
                                     <input type="hidden" name="table_id" value="{{ table.id }}">
-                                    <button type="submit" class="btn btn-sm btn-success">
-                                        Rendre public
-                                    </button>
+                                    <button type="submit" class="btn btn-sm btn-success">Demander la mise publique</button>
                                 </form>
                             {% else %}
-                                <span class="badge bg-success">Publique</span>
+                                <span class="status-badge done">Publique</span>
                             {% endif %}
                         </div>
+                    </div>
+                    <div class="collapse-body p-3 border-t">
+                        <p>{{ table.description|default:"Aucune description." }}</p>
+                        {% if table.content %}
+                            <table class="display table-auto w-full mt-2">
+                                <thead>
+                                    <tr>
+                                        {% for col in table.columns %}
+                                            <th class="border px-2 py-1">{{ col }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in table.content %}
+                                        <tr>
+                                            {% for cell in row %}
+                                                <td class="border px-2 py-1">{{ cell }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>Aucun contenu disponible pour cette table.</p>
+                        {% endif %}
                     </div>
                 </div>
             {% endfor %}
@@ -78,16 +118,44 @@
         {% endif %}
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
 
 <script>
-document.querySelectorAll(".collapse-header").forEach(header => {
-    header.addEventListener("click", () => {
-        const body = header.nextElementSibling;
-        body.classList.toggle("collapsed");
-        const toggle = header.querySelector(".collapse-toggle");
-        if (toggle) {
-            toggle.textContent = body.classList.contains("collapsed") ? "▼" : "▲";
-        }
+$(document).ready(function() {
+    const langFR = {
+        url: 'https://cdn.datatables.net/plug-ins/1.13.7/i18n/fr-FR.json',
+        paginate: { first: "«", last: "»", next: "›", previous: "‹" }
+    };
+
+    // Initialiser DataTable pour tous les tableaux
+    $('table.display').each(function(){
+        $(this).DataTable({
+            language: langFR,
+            pageLength: 10,
+            lengthChange: false,
+            pagingType: "simple_numbers",
+            dom: 'frtip'
+        });
+    });
+
+    // Collapse simple avec flèche
+    $('.collapse-header').each(function(){
+        const toggle = $(this).find('.collapse-toggle');
+        const body = $(this).next('.collapse-body');
+
+        // tableau ouvert par défaut
+        body.show();
+        toggle.text('▲');
+
+        // clic pour replier / déplier
+        $(this).click(function(){
+            body.slideToggle(200);
+            toggle.text(body.is(':visible') ? '▲' : '▼');
+        });
     });
 });
 </script>

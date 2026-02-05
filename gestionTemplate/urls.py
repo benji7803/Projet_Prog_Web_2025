@@ -20,7 +20,6 @@ urlpatterns = [
     path('simulate/<int:campaign_id>/digestion/', views.campaign_digestion, name='campaign_digestion'),
     path('simulate/<int:campaign_id>/digestion/image/', views.campaign_digestion_image, name='campaign_digestion_image'),
     path('simulate/<int:campaign_id>/dilutions/download/', views.campaign_dilution_download, name='campaign_dilution_download'),
-    path('search/', views.plasmid_search, name='search_templates'),
     path('search-public/', views.search_public_templates, name='search_public_templates'),
     path('import-public-templates/<int:template_id>/', views.import_public_templates, name='import_public_templates'),
     path('publier/<int:template_id>/', views.publier_template, name="publier"),
@@ -31,7 +30,11 @@ urlpatterns = [
     path('plasmid/<int:plasmid_id>/', views.plasmid_detail, name='plasmid_detail'),
     path('download/my_collection/<int:collection_id>/', views.download_my_collection, name='download_my_collection'),
     path('collection/<int:collection_id>/plasmid/<str:plasmid_name>/download/', views.download_single_plasmid, name='download_single_plasmid'),
-
+    path('download_correspondance_table/<int:table_id>/', views.download_correspondance_table, name='download_correspondance_table'),
+    path('search/plasmids/', views.plasmid_search, name='plasmid_search'),
+    path('search/ct/', views.ct_search, name='ct_search'),
+    path('search/templates/', views.template_search, name='template_search'),
+    path('search/', views.search, name='search'),
 ]
 
 if settings.DEBUG:

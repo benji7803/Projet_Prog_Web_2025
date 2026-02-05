@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+<main class="templates-page">
+    <div class="page-header">
+        <h2>Recherche</h2>
+    </div>
+
+    <!-- ======================= -->
+    <!-- Onglets de navigation principaux -->
+    <!-- ======================= -->
+    <div class="tabs flex w-full mb-6 bg-gray-100 rounded-lg overflow-hidden shadow-sm">
+        <a href="{% url 'templates:plasmid_search' %}" class="tab flex-1 text-center py-3 font-semibold {% if request.path == '/template/search/plasmids/' %}bg-white border-b-4 border-blue-600 text-blue-600{% else %}text-gray-600{% endif %}">Plasmides</a>
+        <a href="{% url 'templates:ct_search' %}" class="tab flex-1 text-center py-3 font-semibold {% if request.path == '/template/search/ct/' %}bg-white border-b-4 border-blue-600 text-blue-600{% else %}text-gray-600{% endif %}">Tables de correspondance</a>
+        <a href="{% url 'templates:template_search' %}" class="tab flex-1 text-center py-3 font-semibold {% if request.path == '/template/search/templates/' %}bg-white border-b-4 border-blue-600 text-blue-600{% else %}text-gray-600{% endif %}">Templates</a>
+    </div>
+</main>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Tables de correspondance</h1>
+
+    <!-- Onglets principaux : publiques / mes tables -->
+    <div class="tabs flex w-full mb-6 bg-gray-100 rounded-lg overflow-hidden shadow-sm">
+        <a href="?filter=public"
+           class="tab flex-1 text-center py-3 font-semibold {% if filter_type == 'public' or not filter_type %}bg-white border-b-4 border-blue-600 text-blue-600{% else %}text-gray-600{% endif %}">
+           Tables publiques
+        </a>
+        <a href="?filter=mine"
+           class="tab flex-1 text-center py-3 font-semibold {% if filter_type == 'mine' %}bg-white border-b-4 border-blue-600 text-blue-600{% else %}text-gray-600{% endif %}">
+           Mes tables
+        </a>
+    </div>
+
+    <!-- ====================== -->
+    <!-- Tables publiques -->
+    <!-- ====================== -->
+    {% if filter_type == 'public' or not filter_type %}
+        {% if public_tables %}
+            {% for table in public_tables %}
+                <div class="collapse-container mb-4">
+                    <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center cursor-pointer">
+                        <h3>{{ table.name }}</h3>
+                        <span class="collapse-toggle">▼</span>
+                    </div>
+                    <div class="collapse-body p-3 border border-t-0 rounded-b">
+                        <p>{{ table.description|default:"Aucune description." }}</p>
+                        <a href="{% url 'templates:download_ct' table.id %}" class="btn btn-sm btn-primary mt-2">
+                            Télécharger
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-row mt-2">Aucune table publique disponible.</p>
+        {% endif %}
+    {% endif %}
+
+    <!-- ====================== -->
+    <!-- Mes tables -->
+    <!-- ====================== -->
+    {% if filter_type == 'mine' %}
+        {% if my_tables %}
+            {% for table in my_tables %}
+                <div class="collapse-container mb-4">
+                    <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center cursor-pointer">
+                        <h3>{{ table.name }}</h3>
+                        <span class="collapse-toggle">▼</span>
+                    </div>
+                    <div class="collapse-body p-3 border border-t-0 rounded-b">
+                        <p>{{ table.description|default:"Aucune description." }}</p>
+                        <div class="flex gap-2 mt-2">
+                            <a href="{% url 'templates:download_ct' table.id %}" class="btn btn-sm btn-primary">
+                                Télécharger
+                            </a>
+                            {% if not table.is_public %}
+                                <form method="post" action="{% url 'templates:make_ct_public' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="table_id" value="{{ table.id }}">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        Rendre public
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="badge bg-success">Publique</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-row mt-2">Vous n'avez aucune table personnelle.</p>
+        {% endif %}
+    {% endif %}
+</div>
+
+<script>
+document.querySelectorAll(".collapse-header").forEach(header => {
+    header.addEventListener("click", () => {
+        const body = header.nextElementSibling;
+        body.classList.toggle("collapsed");
+        const toggle = header.querySelector(".collapse-toggle");
+        if (toggle) {
+            toggle.textContent = body.classList.contains("collapsed") ? "▼" : "▲";
+        }
+    });
+});
+</script>
+{% endblock %}

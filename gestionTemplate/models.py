@@ -55,8 +55,12 @@ class CorrespondanceTable(models.Model):
     name = models.CharField("Nom de la table de correspondance", max_length=100)
     description = models.TextField("Description", blank=True)
     mapping = models.JSONField("Mapping", default=dict)
-    team = models.ForeignKey('users.Equipe', on_delete=models.CASCADE, null=True, blank=True)
-    mapping_template = models.OneToOneField('MappingTemplate', on_delete=models.SET_NULL, null=True, blank=True, related_name='correspondance_table', help_text="Fichier original associé à cette table")
+    mapping_template = models.OneToOneField('MappingTemplate', on_delete=models.SET_NULL, null=True, blank=True, related_name='correspondance_table')
+    is_public = models.BooleanField(default=False)  # <- nouveau champ
+    uploaded_by = models.ForeignKey('users.UserModel', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return self.name
 
 
 class PlasmidCollection(models.Model):
@@ -81,6 +85,7 @@ class MappingTemplate(models.Model):
     mapping_file = models.FileField(upload_to='user_mapping_templates/', help_text="Fichier CSV/Excel original de correspondance")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField("Public ?", default=False)
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"

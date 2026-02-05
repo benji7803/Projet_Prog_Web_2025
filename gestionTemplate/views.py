@@ -8,10 +8,9 @@ from django.core.files.storage import FileSystemStorage
 from django.forms import inlineformset_factory
 from django.db import transaction
 
-from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest
+from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest, CorrespondanceTable
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm, UploadFileForm
 from .plasmid_mapping import generate_plasmid_maps
-
 
 from Bio import SeqIO
 from io import TextIOWrapper
@@ -1251,10 +1250,10 @@ def plasmid_search(request):
 
 
         # -------------------------------
-        # Collections des équipes
+        # Collections des équipes (groupées par équipe)
         # -------------------------------
         teams = request.user.equipes_membres.all()
-        team_collections_qs = Seqcollection.objects.filter(equipe__in=teams).order_by('-created_at')
+        team_collections_qs = Seqcollection.objects.filter(equipe__in=teams).order_by('equipe__name', '-created_at')
 
         query_name = request.GET.get('name', '').strip()
         if query_name:
@@ -1271,8 +1270,9 @@ def plasmid_search(request):
                                 with zf.open(f) as gb_file:
                                     text_stream = TextIOWrapper(gb_file, encoding='utf-8')
                                     for record in SeqIO.parse(text_stream, "genbank"):
+                                        name = f.split('/')[-1].rsplit('.', 1)[0]  # vrai nom de fichier
                                         results.append({
-                                            "name": record.name,
+                                            "name": name,
                                             "organism": record.annotations.get("organism", ""),
                                             "length": len(record.seq)
                                         })
@@ -1282,18 +1282,20 @@ def plasmid_search(request):
                 results.append({"name": f"Erreur lecture archive : {e}"})
             return results
 
-        # Préparer les collections avec leurs plasmides
-        team_collections = []
+        # Grouper par équipe
+        from collections import defaultdict
+        team_groups = defaultdict(list)
+
         for c in team_collections_qs:
             plasmids = []
             if c.fichier:
                 plasmids = extract_plasmids_from_zip(c.fichier.path)
-            team_collections.append({
+            team_groups[c.equipe].append({
                 "collection": c,
                 "plasmids": plasmids
             })
 
-        context['team_collections'] = team_collections
+        context['team_collections_grouped'] = dict(team_groups)
 
     # -------------------------------
     # Cas 3 : recherche publique
@@ -1662,3 +1664,63 @@ def download_single_plasmid(request, collection_id, plasmid_name):
             response = HttpResponse(data, content_type='application/octet-stream')
             response['Content-Disposition'] = f'attachment; filename="{os.path.basename(matched_file)}"'
             return response
+
+def ct_search(request):
+    # Récupérer le filtre depuis les paramètres GET
+    filter_type = request.GET.get('filter', 'public')  # public par défaut
+
+    # Tables publiques
+    public_tables = CorrespondanceTable.objects.filter(is_public=True)
+
+    # Mes tables
+    if request.user.is_authenticated:
+        my_tables = CorrespondanceTable.objects.filter(uploaded_by=request.user)
+    else:
+        my_tables = CorrespondanceTable.objects.none()
+
+    return render(request, 'gestionTemplates/ct_search.html', {
+        'public_tables': public_tables,
+        'my_tables': my_tables,
+        'filter_type': filter_type  # <- important !
+    })
+
+def download_correspondance_table(request, table_id):
+    try:
+        table = MappingTemplate.objects.get(pk=table_id)
+    except MappingTemplate.DoesNotExist:
+        raise Http404("Table de correspondance introuvable.")
+
+    # Préparer le contenu JSON à télécharger
+    data = {
+        "name": table.name,
+        "description": table.description,
+        "mapping": table.mapping_file,
+    }
+
+    # Créer la réponse HTTP
+    response = HttpResponse(json.dumps(data, indent=2), content_type='application/json')
+    response['Content-Disposition'] = f'attachment; filename="{table.name}.json"'
+
+    return response
+
+def template_search(request):
+    filter_type = request.GET.get('filter', 'public')
+
+    # Templates publics
+    public_templates = CampaignTemplate.objects.filter(isPublic=True)
+
+    # Mes templates
+    if request.user.is_authenticated:
+        my_templates = CampaignTemplate.objects.filter(user=request.user)
+    else:
+        my_templates = CampaignTemplate.objects.none()
+
+    return render(request, 'gestionTemplates/template_search.html', {
+        'public_templates': public_templates,
+        'my_templates': my_templates,
+        'filter_type': filter_type
+    })
+
+def search(request):
+    # Placeholder : tu peux ajouter la logique de recherche plus tard
+    return render(request, 'gestionTemplates/search.html')

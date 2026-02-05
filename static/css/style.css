@@ -717,3 +717,14 @@ body .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
     border-color: #007ab8 !important;
 }
 
+/* === Sidebar verticale === */
+.page-container {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.sidebar {
+    flex-shrink: 0;
+    height: fit-content; /* s’adapte au contenu */
+}
+

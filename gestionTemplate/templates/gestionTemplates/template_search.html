@@ -1,0 +1,96 @@
+{% extends "layout.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Templates</h1>
+
+    <!-- Onglets principaux : publics / mes templates -->
+    <div class="tabs flex w-full mb-6 bg-gray-100 rounded-lg overflow-hidden shadow-sm">
+        <a href="?filter=public"
+           class="tab flex-1 text-center py-3 font-semibold {% if filter_type == 'public' or not filter_type %}bg-white border-b-4 border-blue-600 text-blue-600{% else %}text-gray-600{% endif %}">
+           Templates publics
+        </a>
+        <a href="?filter=mine"
+           class="tab flex-1 text-center py-3 font-semibold {% if filter_type == 'mine' %}bg-white border-b-4 border-blue-600 text-blue-600{% else %}text-gray-600{% endif %}">
+           Mes templates
+        </a>
+    </div>
+
+    <!-- ====================== -->
+    <!-- Templates publics -->
+    <!-- ====================== -->
+    {% if filter_type == 'public' or not filter_type %}
+        {% if public_templates %}
+            {% for template in public_templates %}
+                <div class="collapse-container mb-4">
+                    <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center cursor-pointer">
+                        <h3>{{ template.name }}</h3>
+                        <span class="collapse-toggle">▼</span>
+                    </div>
+                    <div class="collapse-body p-3 border border-t-0 rounded-b">
+                        <p>{{ template.description|default:"Aucune description." }}</p>
+                        <p class="text-sm text-gray-500">Par : {{ template.user.username }}</p>
+                        <a href="{% url 'templates:download_template' template.id %}" class="btn btn-sm btn-primary mt-2">
+                            Télécharger
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-row mt-2">Aucun template public disponible.</p>
+        {% endif %}
+    {% endif %}
+
+    <!-- ====================== -->
+    <!-- Mes templates -->
+    <!-- ====================== -->
+    {% if filter_type == 'mine' %}
+        {% if my_templates %}
+            {% for template in my_templates %}
+                <div class="collapse-container mb-4">
+                    <div class="collapse-header p-2 bg-gray-200 rounded flex justify-between items-center cursor-pointer">
+                        <h3>{{ template.name }}</h3>
+                        <span class="collapse-toggle">▼</span>
+                    </div>
+                    <div class="collapse-body p-3 border border-t-0 rounded-b">
+                        <p>{{ template.description|default:"Aucune description." }}</p>
+                        <p class="text-sm text-gray-500">Créé le : {{ template.created_at|date:"d/m/Y H:i" }}</p>
+                        <div class="flex gap-2 mt-2">
+                            <a href="{% url 'templates:download_template' template.id %}" class="btn btn-sm btn-primary">
+                                Télécharger
+                            </a>
+                            {% if not template.is_public %}
+                                <form method="post" action="{% url 'templates:make_template_public' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="template_id" value="{{ template.id }}">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        Rendre public
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="badge bg-success">Publique</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-row mt-2">Vous n'avez aucun template personnel.</p>
+        {% endif %}
+    {% endif %}
+</div>
+
+<script>
+document.querySelectorAll(".collapse-header").forEach(header => {
+    header.addEventListener("click", () => {
+        const body = header.nextElementSibling;
+        body.classList.toggle("collapsed");
+        const toggle = header.querySelector(".collapse-toggle");
+        if (toggle) {
+            toggle.textContent = body.classList.contains("collapsed") ? "▼" : "▲";
+        }
+    });
+});
+</script>
+{% endblock %}

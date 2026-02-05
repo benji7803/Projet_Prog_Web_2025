@@ -7,10 +7,14 @@ from django.core.files import File
 from django.core.files.storage import FileSystemStorage
 from django.forms import inlineformset_factory
 from django.db import transaction
+from django.contrib import messages
+from django.utils import timezone
+
 
 from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest, CorrespondanceTable
 from .forms import CampaignTemplateForm, AnonymousSimulationForm, ColumnForm, UploadFileForm
 from .plasmid_mapping import generate_plasmid_maps
+from users.models import Seqcollection
 
 from Bio import SeqIO
 from io import TextIOWrapper
@@ -22,6 +26,8 @@ import zipfile
 import tarfile
 import shutil
 import json
+import csv
+import io
 
 # insillyclo
 from insillyclo.template_generator import make_template
@@ -60,6 +66,7 @@ def dashboard(request):
 
     return render(request, 'gestionTemplates/dashboard.html', context)
 
+
 ColumnFormSet = inlineformset_factory(
     CampaignTemplate,
     ColumnTemplate,
@@ -67,6 +74,7 @@ ColumnFormSet = inlineformset_factory(
     extra=2,
     can_delete=True
 )
+
 
 def create_template(request):
     if request.method == 'POST':
@@ -126,7 +134,7 @@ def process_template(file, user=None, is_public=False):
             ColumnTemplate.objects.create(
                 template=campaign_template,
                 part_names=str(col_name),
-                part_types='',  # À adapter selon tes besoins
+                part_types='',
                 is_optional=False,
                 in_output_name=True,
                 part_separators=output_separator
@@ -221,7 +229,6 @@ def submit(request):
         if 'save_collection' in request.POST and request.user.is_authenticated:
             collection_name = request.POST.get('collection_name', '').strip()
             collection_desc = request.POST.get('collection_description', '').strip()
-            # accept different input names for the uploaded archive
             plasmid_archive = request.FILES.get('collection_plasmid_archive') or request.FILES.get('plasmid_archive') or request.FILES.get('plasmid-archive') or request.FILES.get('plasmid-archive-direct')
             
             if collection_name and plasmid_archive:
@@ -349,8 +356,6 @@ def submit(request):
         "plasmid_collections": plasmid_collections,
         "mapping_templates": mapping_templates,
     })
-
-
 
 
 def simulate(request):
@@ -687,10 +692,12 @@ def delete_template(request, template_id):
     campaign.delete()
     return redirect('templates:dashboard')
 
+
 def delete_campaign(request, campaign_id):
     campaign = get_object_or_404(Campaign, id=campaign_id)
     campaign.delete()
     return redirect('templates:dashboard')
+
 
 def view_plasmid(request):
     # ---- Notifications des décisions de l'admin ----
@@ -765,6 +772,7 @@ def view_plasmid(request):
     # GET : page d’upload
     return render(request, 'gestionTemplates/view_plasmid.html')
 
+
 def plasmid_detail(request, plasmid_id):
     plasmide = get_object_or_404(Plasmide, id=plasmid_id)
     file_path = os.path.join(settings.MEDIA_ROOT, "temp_uploads/genbank_files", f"{plasmide.name}.gb")
@@ -777,6 +785,7 @@ def plasmid_detail(request, plasmid_id):
         'linear_map': linear_url,
         'circular_map': circular_url
     })
+
 
 def user_view_plasmid(request, campaign_id):
     campaign = get_object_or_404(Campaign, id=campaign_id)
@@ -1057,6 +1066,7 @@ def campaign_dilution_download(request, campaign_id):
             return resp
     except zipfile.BadZipFile:
         raise Http404
+
 
 def plasmid_search(request):
 
@@ -1341,6 +1351,7 @@ def plasmid_search(request):
 
     return render(request, 'gestionTemplates/plasmid_search.html', context)
 
+
 def search_public_templates(request):
     query = request.GET.get('q', '')
     templates = CampaignTemplate.objects.filter(name__icontains=query, isPublic=True)
@@ -1349,6 +1360,7 @@ def search_public_templates(request):
         return render(request, 'gestionTemplates/partials/results_list.html', {'templates': templates})
     
     return render(request, 'gestionTemplates/search_main_page.html', {'templates': templates})
+
 
 def import_public_templates(request, template_id):
 
@@ -1378,9 +1390,6 @@ def import_public_templates(request, template_id):
     }
 
     return render(request, 'gestionTemplates/dashboard.html', context)
-
-from django.contrib import messages
-from django.shortcuts import redirect
 
 
 def publier_template(request, template_id):
@@ -1414,6 +1423,7 @@ def publier_template(request, template_id):
 
     messages.success(request, f"Template '{original.name}' publié avec succès.")
     return redirect('templates:dashboard')
+
 
 def user_view_plasmid_archive(request, campaign_id):
     campaign = get_object_or_404(Campaign, id=campaign_id)
@@ -1455,8 +1465,6 @@ def user_view_plasmid_archive(request, campaign_id):
         'files': files_in_zip
     })
 
-from django.contrib import messages
-from django.utils import timezone
 
 def make_public(request):
     if request.method == "POST" and request.user.is_authenticated:
@@ -1524,6 +1532,7 @@ def make_public(request):
     messages.error(request, "Action non autorisée.")
     return redirect("plasmid_search")
 
+
 def make_public_bulk(request):
     if request.method != "POST" or not request.user.is_authenticated:
         messages.error(request, "Action non autorisée.")
@@ -1583,9 +1592,6 @@ def make_public_bulk(request):
 
     return redirect(request.META.get("HTTP_REFERER"))
 
-from django.http import HttpResponse, Http404
-from io import StringIO
-from .models import Plasmide  # adapte selon ton modèle
 
 def download_plasmid(request):
     plasmid_name = request.GET.get("plasmid_name")
@@ -1624,8 +1630,6 @@ def download_plasmid(request):
     else:
         raise Http404("Paramètres manquants pour le téléchargement.")
 
-from django.http import FileResponse, Http404
-from users.models import Seqcollection
 
 def download_my_collection(request, collection_id):
     collection = get_object_or_404(Seqcollection, id=collection_id, uploaded_by=request.user)
@@ -1637,6 +1641,7 @@ def download_my_collection(request, collection_id):
         return response
     except (FileNotFoundError, ValueError):
         raise Http404("Le fichier est introuvable sur le serveur.")
+
 
 def download_single_plasmid(request, collection_id, plasmid_name):
     try:
@@ -1666,6 +1671,7 @@ def download_single_plasmid(request, collection_id, plasmid_name):
             response['Content-Disposition'] = f'attachment; filename="{os.path.basename(matched_file)}"'
             return response
 
+
 def ct_search(request):
     # Récupérer le filtre depuis les paramètres GET
     filter_type = request.GET.get('filter', 'public')  # public par défaut
@@ -1684,6 +1690,7 @@ def ct_search(request):
         'my_tables': my_tables,
         'filter_type': filter_type  # <- important !
     })
+
 
 def download_correspondance_table(request, table_id):
     try:
@@ -1704,6 +1711,7 @@ def download_correspondance_table(request, table_id):
 
     return response
 
+
 def template_search(request):
     filter_type = request.GET.get('filter', 'public')
 
@@ -1721,6 +1729,7 @@ def template_search(request):
         'my_templates': my_templates,
         'filter_type': filter_type
     })
+
 
 def search(request):
     # Placeholder : tu peux ajouter la logique de recherche plus tard

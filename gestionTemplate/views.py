@@ -1671,13 +1671,13 @@ def ct_search(request):
     filter_type = request.GET.get('filter', 'public')  # public par défaut
 
     # Tables publiques
-    public_tables = CorrespondanceTable.objects.filter(is_public=True)
+    public_tables = MappingTemplate.objects.filter(is_public=True)
 
     # Mes tables
     if request.user.is_authenticated:
-        my_tables = CorrespondanceTable.objects.filter(uploaded_by=request.user)
+        my_tables = MappingTemplate.objects.filter(user=request.user)
     else:
-        my_tables = CorrespondanceTable.objects.none()
+        my_tables = MappingTemplate.objects.none()
 
     return render(request, 'gestionTemplates/ct_search.html', {
         'public_tables': public_tables,
@@ -1685,27 +1685,100 @@ def ct_search(request):
         'filter_type': filter_type  # <- important !
     })
 
-def download_correspondance_table(request, table_id):
-    try:
-        table = MappingTemplate.objects.get(pk=table_id)
-    except MappingTemplate.DoesNotExist:
-        raise Http404("Table de correspondance introuvable.")
+import pandas as pd
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, Http404
+from .models import MappingTemplate
+import json
 
-    # Préparer le contenu JSON à télécharger
-    data = {
-        "name": table.name,
-        "description": table.description,
-        "mapping": table.mapping_file,
-    }
+def ct_search(request):
+    filter_type = request.GET.get('filter', 'public')  # public par défaut
 
-    # Créer la réponse HTTP
-    response = HttpResponse(json.dumps(data, indent=2), content_type='application/json')
-    response['Content-Disposition'] = f'attachment; filename="{table.name}.json"'
+    # Tables publiques
+    public_tables = MappingTemplate.objects.filter(is_public=True)
 
+    # Mes tables
+    if request.user.is_authenticated:
+        my_tables = MappingTemplate.objects.filter(user=request.user)
+    else:
+        my_tables = MappingTemplate.objects.none()
+
+    # Préparer le contenu de toutes les tables pour affichage
+    def get_table_data(tables):
+        all_tables = []
+        for table in tables:
+            try:
+                file_path = table.mapping_file.path
+                if file_path.lower().endswith('.csv'):
+                    df = pd.read_csv(file_path, sep = ';')
+                else:
+                    df = pd.read_excel(file_path)
+                table_content = df.values.tolist()   # liste de listes
+                table_columns = df.columns.tolist()  # liste de colonnes
+            except Exception:
+                table_content = []
+                table_columns = []
+            all_tables.append({
+                "id": table.id,
+                "name": table.name,
+                "description": table.description,
+                "columns": table_columns,
+                "content": table_content,
+            })
+        return all_tables
+
+    public_tables_data = get_table_data(public_tables)
+    my_tables_data = get_table_data(my_tables)
+
+    return render(request, 'gestionTemplates/ct_search.html', {
+        'public_tables': public_tables_data,
+        'my_tables': my_tables_data,
+        'filter_type': filter_type,
+    })
+
+def download_ct(request, table_id):
+    table = get_object_or_404(MappingTemplate, pk=table_id)
+    response = FileResponse(open(table.mapping_file.path, 'rb'))
+    response['Content-Disposition'] = f'attachment; filename="{table.name}{table.mapping_file.name[-5:]}"'
     return response
 
+def search(request):
+    # Placeholder : tu peux ajouter la logique de recherche plus tard
+    return render(request, 'gestionTemplates/search.html')
+
+def request_table_public(request):
+    if request.method == "POST" and request.user.is_authenticated:
+        table_id = request.POST.get("table_id")
+        table = get_object_or_404(MappingTemplate, id=table_id)
+
+        # Vérifier que l'utilisateur est le propriétaire
+        if table.user != request.user:
+            messages.error(request, "Action non autorisée.")
+            return redirect(request.META.get("HTTP_REFERER"))
+
+        # Vérifier qu'il n'existe pas déjà une demande en attente pour cette table
+        existing_request = PublicationRequest.objects.filter(
+            table=table, status='pending'
+        ).first()
+        if existing_request:
+            messages.info(request, "Une demande de mise publique est déjà en attente pour cette table.")
+            return redirect(request.META.get("HTTP_REFERER"))
+
+        # Créer la demande
+        PublicationRequest.objects.create(
+            table=table,
+            requested_by=request.user,
+            status="pending"
+        )
+
+        messages.success(request, f"Demande de mise publique envoyée pour la table '{table.name}'.")
+        return redirect(request.META.get("HTTP_REFERER"))
+
+    messages.error(request, "Action non autorisée.")
+    return redirect("ct_search")
+
 def template_search(request):
-    filter_type = request.GET.get('filter', 'public')
+    filter_type = request.GET.get('filter', 'public')  # public par défaut
 
     # Templates publics
     public_templates = CampaignTemplate.objects.filter(isPublic=True)
@@ -1716,12 +1789,82 @@ def template_search(request):
     else:
         my_templates = CampaignTemplate.objects.none()
 
+    # Préparer le contenu des fichiers pour affichage
+    def get_template_data(templates):
+        all_templates = []
+        for template in templates:
+            try:
+                if template.template_file:
+                    file_path = template.template_file.path
+                    if file_path.lower().endswith('.csv'):
+                        df = pd.read_csv(file_path, sep=';')
+                    else:
+                        df = pd.read_excel(file_path)
+                    content = df.values.tolist()   # liste de listes
+                    columns = df.columns.tolist()  # liste de colonnes
+                else:
+                    content, columns = [], []
+            except Exception:
+                content, columns = [], []
+            all_templates.append({
+                "id": template.id,
+                "name": template.name,
+                "description": template.description,
+                "user": template.user,
+                "created_at": template.created_at,
+                "template_file": template.template_file,
+                "columns": columns,
+                "content": content
+            })
+        return all_templates
+
+    public_templates_data = get_template_data(public_templates)
+    my_templates_data = get_template_data(my_templates)
+
     return render(request, 'gestionTemplates/template_search.html', {
-        'public_templates': public_templates,
-        'my_templates': my_templates,
-        'filter_type': filter_type
+        'public_templates': public_templates_data,
+        'my_templates': my_templates_data,
+        'filter_type': filter_type,
     })
 
-def search(request):
-    # Placeholder : tu peux ajouter la logique de recherche plus tard
-    return render(request, 'gestionTemplates/search.html')
+def download_template(request, template_id):
+    template = get_object_or_404(CampaignTemplate, pk=template_id)
+    if not template.template_file:
+        return HttpResponse("Fichier non disponible.", status=404)
+
+    response = FileResponse(open(template.template_file.path, 'rb'))
+    ext = template.template_file.name.split('.')[-1]
+    response['Content-Disposition'] = f'attachment; filename="{template.name}.{ext}"'
+    return response
+
+def request_table_public(request):
+    if request.method == "POST" and request.user.is_authenticated:
+        table_id = request.POST.get("table_id")
+        table = get_object_or_404(MappingTemplate, id=table_id)
+
+        # Vérifier que l'utilisateur est le propriétaire
+        if table.user != request.user:
+            messages.error(request, "Action non autorisée.")
+            return redirect(request.META.get("HTTP_REFERER"))
+
+        # Vérifier qu'il n'existe pas déjà une demande en attente pour cette table
+        existing_request = PublicationRequest.objects.filter(
+            table=table,
+            status="pending"
+        ).first()
+        if existing_request:
+            messages.info(request, "Une demande de mise publique est déjà en attente pour cette table.")
+            return redirect(request.META.get("HTTP_REFERER"))
+
+        # Créer la demande
+        PublicationRequest.objects.create(
+            table=table,
+            requested_by=request.user,
+            status="pending"
+        )
+
+        messages.success(request, f"Demande de mise publique envoyée pour la table '{table.name}'.")
+        return redirect(request.META.get("HTTP_REFERER"))
+
+    messages.error(request, "Action non autorisée.")
+    return redirect("template_search")

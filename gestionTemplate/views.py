@@ -35,6 +35,7 @@ import insillyclo.simulator
 # Dashboard : Lister TOUS les templates (public)
 def dashboard(request):
     if request.user.is_authenticated:
+        # Récupérer tous les templates (privés et publics)
         liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
         previous_sim = Campaign.objects.filter(user=request.user).order_by('-created_at')
     else:
@@ -88,7 +89,7 @@ def create_template(request):
     return render(request, 'gestionTemplates/create.html', {"form": form, "formset": formset, "is_edit": False})
 
 # Upload
-def process_template(file, user = None):
+def process_template(file, user=None, is_public=False):
     df_raw = pd.read_excel(file, header=None)
 
     # Extraction des métadonnées
@@ -115,7 +116,7 @@ def process_template(file, user = None):
         restriction_enzyme=enzyme,
         separator_sortie=output_separator,
         user=user,
-        isPublic=False
+        isPublic=is_public
     )
 
     # Extraire et créer les colonnes (à partir de la colonne 2)

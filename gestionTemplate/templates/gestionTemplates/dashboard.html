@@ -10,7 +10,7 @@
 
             <form method="post" enctype="multipart/form-data" id="upload-form" class="inline-form">
                 {% csrf_token %}
-                <input type="file" name="fichier" id="id_fichier" class="input-file-hidden" onchange="this.form.submit()">
+                <input type="file" name="fichier" id="id_fichier" class="input-file-hidden">
                 <label for="id_fichier" class="custom-upload-btn">Choisir un fichier</label>
             </form>
 
@@ -46,7 +46,7 @@
     <section class="templates-table">
         <div class="collapse-container">
             <div class="collapse-header">
-                <h3>Mes Templates</h3>
+                <h3>Templates</h3>
                 <span class="collapse-toggle">▼</span>
             </div>
             <div class="collapse-body">
@@ -92,6 +92,7 @@
             </div>
         </div>
     </section>
+
 
     <!-- === SECTION : Anciennes simulations === -->
     <section class="simulations-section">
@@ -156,6 +157,15 @@
     if (openBtn) {
         openBtn.addEventListener('click', () => modal.showModal());
         modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
+    }
+
+    // Gestion du formulaire d'upload de fichier
+    const fileInput = document.getElementById('id_fichier');
+    const uploadForm = document.getElementById('upload-form');
+    if (fileInput) {
+        fileInput.addEventListener('change', () => {
+            uploadForm.submit();
+        });
     }
 </script>
 {% endblock %}

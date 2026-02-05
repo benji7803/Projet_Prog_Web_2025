@@ -148,10 +148,10 @@
     <!-- === Suppression du compte === -->
     <div class="collapse-container" style="margin-top: 2rem;">
         <div class="collapse-header" style="background-color: #fdecea; border-color: #f5c2c7;">
-            <h3 style="color: #b91c1c;">Suppression du Compte</h3>
+            <h3 style="color: #b91c1c;">Supprimer mon compte</h3>
         </div>
         <div class="collapse-body">
-            <form action="{% url 'users:delete_user' user.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible.')">
+            <form action="{% url 'users:delete_user' user.id %}" method="post" onsubmit="return confirm('Attention ! Cette action est irréversible. Vous perdrez toutes vos données associées. Êtes-vous sûr de vouloir continuer ?');">
                 {% csrf_token %}
                 <button type="submit" class="btn-icon btn-danger">
                     Supprimer mon compte

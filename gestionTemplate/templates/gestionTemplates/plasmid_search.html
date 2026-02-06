@@ -98,28 +98,47 @@
                     </div>
                 {% endif %}
 
-                <!-- ====================== -->
+                <!-- =============================== -->
                 <!-- Mes simulations -->
-                <!-- ====================== -->
-                {% if filter_type == 'mine' %}
-                    {% if campaigns_with_plasmids %}
-                        {% for item in campaigns_with_plasmids %}
-                            <div class="collapse-container mb-4">
-                                <div class="collapse-header flex justify-between items-center p-2 bg-gray-200 rounded">
-                                    <h3>{{ item.campaign.name }}</h3>
-                                    <span class="status-badge {{ item.campaign.status }}">{{ item.campaign.status|capfirst }}</span>
-                                </div>
-                                <div class="collapse-body p-3 border border-t-0 rounded-b">
-                                    <p>Créée le : {{ item.campaign.created_at|date:"d/m/Y H:i" }}</p>
-
-                                    {% comment %} Tables des plasmides d’archive et résultats (inchangé) {% endcomment %}
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p>Aucune campagne trouvée.</p>
-                    {% endif %}
-                {% endif %}
+                <!-- =============================== --> 
+                {% if filter_type == 'mine' %} 
+                    {% if campaigns_with_plasmids %} 
+                        <h3>Mes simulations</h3> 
+                        {% for item in campaigns_with_plasmids %} 
+                            <div class="collapse-container mb-4"> 
+                            <div class="collapse-header flex justify-between items-center p-2 bg-gray-200 rounded"> 
+                            <h3>{{ item.campaign.name }}</h3> 
+                            <span class="status-badge {{ item.campaign.status }}">{{ item.campaign.status|capfirst }}</span> 
+                            </div> 
+                            <div class="collapse-body p-3 border border-t-0 rounded-b"> 
+                            <p>Créée le : {{ item.campaign.created_at|date:"d/m/Y H:i" }} | Template : {{ item.campaign.template_file.name|default:"-" }}</p> 
+                            <h4 class="mt-3">Plasmides de l'archive :</h4> 
+                            {% if item.plasmids_archive %} <div class="templates-table overflow-x-auto"> 
+                            <table class="table-auto w-full border"> <thead> <tr class="bg-gray-100"> 
+                            <th class="border px-2 py-1">Nom</th> <th class="border px-2 py-1">Organisme</th> 
+                            <th class="border px-2 py-1">Longueur (bp)</th> 
+                            <th class="border px-2 py-1">Actions</th> </tr> </thead> <tbody> 
+                            {% for p in item.plasmids_archive %} 
+                                <tr> 
+                                <td class="border px-2 py-1">{{ p.name }}</td> 
+                                <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td> 
+                                <td class="border px-2 py-1">{{ p.length|default:"-" }}</td> 
+                                <td class="border px-2 py-1 flex gap-1 flex-wrap"> 
+                                <a href="{% url 'templates:user_view_plasmid_archive' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">Visualiser</a> 
+                                <a href="{% url 'templates:download_plasmid' %}?campaign_id={{ item.campaign.id }}&plasmid_name={{ p.name|urlencode }}" class="btn btn-sm btn-primary">Télécharger</a> 
+                                </td> 
+                                </tr> 
+                            {% endfor %} 
+                            </tbody> 
+                            </table> 
+                            </div> 
+                    {% else %} 
+                        <p class="empty-row">Aucun plasmide dans l'archive.</p> 
+                    {% endif %} 
+                    </div> 
+                </div> {% endfor %} {
+                    % else %} 
+                        <p>Aucune campagne trouvée.</p> {% endif %} {% endif %}
 
                 <!-- ====================== -->
                 <!-- Mes collections -->

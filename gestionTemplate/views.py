@@ -41,31 +41,52 @@ import insillyclo.simulator
 
 # Dashboard : Lister TOUS les templates (public)
 def dashboard(request):
+    # Force la création de la session pour l'utilisateur anonyme
+    _ = request.session.session_key
+    
+    if request.method == 'POST':
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                file = request.FILES['fichier']
+                template = process_template(file, request.user if request.user.is_authenticated else None)
+                # Si utilisateur anonyme, ajouter le template à sa session
+                if not request.user.is_authenticated and template:
+                    if 'anonymous_templates' not in request.session:
+                        request.session['anonymous_templates'] = []
+                    if template.id not in request.session['anonymous_templates']:
+                        request.session['anonymous_templates'].append(template.id)
+                    request.session.modified = True
+                    messages.success(request, f"Template '{template.name}' créé et sauvegardé dans votre session.")
+                elif template and request.user.is_authenticated:
+                    messages.success(request, f"Template '{template.name}' créé avec succès.")
+            except Exception as e:
+                messages.error(request, f"Erreur lors de l'upload : {str(e)}")
+        else:
+            messages.error(request, "Veuillez sélectionner un fichier valide.")
+    else:
+        form = UploadFileForm()
+
     if request.user.is_authenticated:
         # Récupérer les templates privés de l'utilisateur ET les templates publics
         liste_templates = CampaignTemplate.objects.filter(
             Q(user=request.user) | Q(isPublic=True)
         ).order_by('-created_at')
         previous_sim = Campaign.objects.filter(user=request.user).order_by('-created_at')
+        anonymous_template_ids = []
     else:
-        # Utilisateur non authentifié : ne montrer que les templates publics
-        liste_templates = CampaignTemplate.objects.filter(isPublic=True).order_by('-created_at')
+        # Utilisateur non authentifié : montrer templates publics + ses propres templates en session
+        anonymous_template_ids = request.session.get('anonymous_templates', [])
+        liste_templates = CampaignTemplate.objects.filter(
+            Q(isPublic=True) | Q(id__in=anonymous_template_ids)
+        ).order_by('-created_at')
         previous_sim = None
     
-
-    if request.method == 'POST':
-        form = UploadFileForm(request.POST, request.FILES)
-        if form.is_valid():
-            file = request.FILES['fichier']
-            process_template(file, request.user if request.user.is_authenticated else None)
-
-    else:
-        form = UploadFileForm()
-
     context = {
         'liste_templates': liste_templates,
         'previous_sim': previous_sim,
         'form': form,
+        'anonymous_template_ids': anonymous_template_ids,
     }
 
     return render(request, 'gestionTemplates/dashboard.html', context)
@@ -92,7 +113,17 @@ def create_template(request):
                 parent.save()
                 formset.instance = parent
                 formset.save()
-                messages.success(request, f"Template '{parent.name}' créé avec succès.")
+                
+                # Si utilisateur anonyme, tracker le template en session
+                if not request.user.is_authenticated:
+                    if 'anonymous_templates' not in request.session:
+                        request.session['anonymous_templates'] = []
+                    if parent.id not in request.session['anonymous_templates']:
+                        request.session['anonymous_templates'].append(parent.id)
+                    request.session.modified = True
+                    messages.success(request, f"Template '{parent.name}' créé et sauvegardé dans votre session.")
+                else:
+                    messages.success(request, f"Template '{parent.name}' créé avec succès.")
             return redirect('templates:dashboard')
         
     else:
@@ -144,14 +175,32 @@ def process_template(file, user=None, is_public=False):
                 in_output_name=True,
                 part_separators=output_separator
             )
+    
+    return campaign_template
+
+
+def can_edit_template(request, template):
+    """Vérifie si l'utilisateur peut modifier ce template"""
+    if request.user.is_authenticated:
+        return template.user == request.user or request.user.isAdministrator
+    else:
+        # Utilisateur anonyme : vérifie si le template est en session
+        anonymous_template_ids = request.session.get('anonymous_templates', [])
+        return template.id in anonymous_template_ids
 
 
 # Modification
 def edit_template(request, template_id):
     
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
-    if campaign.isPublic and (not request.user.isAdministrator):
+    
+    # Vérifications de permission
+    if campaign.isPublic and (not request.user.is_authenticated or not request.user.isAdministrator):
         messages.error(request, "Vous n'avez pas la permission de modifier ce template public.")
+        return redirect('templates:dashboard')
+    
+    if not can_edit_template(request, campaign):
+        messages.error(request, "Vous n'avez pas la permission de modifier ce template.")
         return redirect('templates:dashboard')
 
     if request.method == 'POST':
@@ -698,6 +747,11 @@ def make_zipfile(source_dir, output_filename):
 
 def delete_template(request, template_id):
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    
+    if not can_edit_template(request, campaign):
+        messages.error(request, "Vous n'avez pas la permission de supprimer ce template.")
+        return redirect('templates:dashboard')
+    
     campaign.delete()
     messages.success(request, f"Template '{campaign.name}' supprimé avec succès.")
     return redirect('templates:dashboard')

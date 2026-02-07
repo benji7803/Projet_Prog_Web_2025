@@ -66,7 +66,7 @@
                                     <a href="{% url 'templates:download_template' t.id %}" class="btn-icon btn-info" title="Télécharger">
                                         Télécharger
                                     </a>
-                                    {% if not t.isPublic or user.is_authenticated %}
+                                    {% if not t.isPublic or user.is_authenticated or t.id in anonymous_template_ids %}
                                         <a href="{% url 'templates:edit_template' t.id %}" class="btn-icon btn-warning" title="Modifier">
                                             Modifier
                                         </a>

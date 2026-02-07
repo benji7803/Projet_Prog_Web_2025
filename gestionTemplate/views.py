@@ -1549,11 +1549,21 @@ def user_view_plasmid_archive(request, campaign_id):
 def make_public(request):
     if request.method == "POST" and request.user.is_authenticated:
         campaign_id = request.POST.get("campaign_id")
+        collection_id = request.POST.get("collection_id")
         plasmid_name = request.POST.get("plasmid_name")
 
-        campaign = get_object_or_404(Campaign, id=campaign_id)
+        # Récupérer la source : Campaign ou PlasmidCollection
+        campaign = None
+        collection = None
+        if campaign_id:
+            campaign = get_object_or_404(Campaign, id=campaign_id)
+        elif collection_id:
+            collection = get_object_or_404(PlasmidCollection, id=collection_id)
+        else:
+            messages.error(request, "Aucune source (campagne ou collection) n’a été spécifiée.")
+            return redirect(request.META.get("HTTP_REFERER"))
 
-        # Fonction pour traiter un zip et créer le plasmide
+        # Fonction interne pour traiter un zip et extraire un plasmide
         def process_zip(zip_path):
             try:
                 with zipfile.ZipFile(zip_path, "r") as zf:
@@ -1564,23 +1574,28 @@ def make_public(request):
                             break
 
                     if not gb_file_name:
-                        return None, "Fichier GenBank non trouvé."
+                        return None, "Fichier GenBank non trouvé dans l’archive."
 
                     with zf.open(gb_file_name) as gb_file:
                         text_stream = TextIOWrapper(gb_file, encoding='utf-8')
                         record = SeqIO.read(text_stream, "genbank")
                         return record, None
             except Exception as e:
-                return None, f"Erreur lors de l'import : {e}"
+                return None, f"Erreur lors de l’import : {e}"
 
+        # Essayer de trouver le plasmide dans la source appropriée
         record, error_msg = None, None
-        if campaign.plasmid_archive:
-            record, error_msg = process_zip(campaign.plasmid_archive.path)
-        if not record and campaign.result_file:
-            record, error_msg = process_zip(campaign.result_file.path)
+        if campaign:
+            if campaign.plasmid_archive:
+                record, error_msg = process_zip(campaign.plasmid_archive.path)
+            if not record and campaign.result_file:
+                record, error_msg = process_zip(campaign.result_file.path)
+        elif collection:
+            if collection.plasmid_archive:
+                record, error_msg = process_zip(collection.plasmid_archive.path)
 
         if not record:
-            messages.error(request, error_msg or "Plasmide non trouvé.")
+            messages.error(request, error_msg or "Plasmide non trouvé dans l’archive.")
             return redirect(request.META.get("HTTP_REFERER"))
 
         # ---- Créer ou mettre à jour le plasmide public ----
@@ -1595,22 +1610,25 @@ def make_public(request):
             }
         )
 
-        # ---- Créer une PublicationRequest si nécessaire ----
+        # ---- Créer une PublicationRequest ----
         PublicationRequest.objects.create(
             plasmid_name=plasmide.name,
-            requested_by=campaign.user if campaign.user else None,
-            campaign=campaign,
-            status="approved",   # puisque c’est l’admin qui valide directement
+            requested_by=(campaign.user if campaign else collection.user),
+            campaign=campaign if campaign else None,
+            collection=collection if collection else None,
             reviewed_by=request.user,
+            status="approved",
             reviewed_at=timezone.now(),
-            notified=False       # l’utilisateur sera notifié sur view_plasmid
+            notified=False
         )
 
-        messages.success(request, f"Plasmide '{plasmide.name}' rendu public et PublicationRequest créée.")
-        return redirect(request.META.get("HTTP_REFERER"))
+        messages.success(
+            request,
+            f"Plasmide '{plasmide.name}' rendu public et PublicationRequest créée avec succès."
+        )
 
     messages.error(request, "Action non autorisée.")
-    return redirect("plasmid_search")
+    return redirect(request.META.get("HTTP_REFERER"))
 
 
 def make_public_bulk(request):
@@ -1619,16 +1637,27 @@ def make_public_bulk(request):
         return redirect("plasmid_search")
 
     campaign_id = request.POST.get("campaign_id")
-    campaign = get_object_or_404(Campaign, id=campaign_id)
+    collection_id = request.POST.get("collection_id")
 
-    def process_zip(zip_path):
+    campaign = None
+    collection = None
+    if campaign_id:
+        campaign = get_object_or_404(Campaign, id=campaign_id)
+    elif collection_id:
+        collection = get_object_or_404(PlasmidCollection, id=collection_id)
+    else:
+        messages.error(request, "Aucune source (campagne ou collection) spécifiée.")
+        return redirect(request.META.get("HTTP_REFERER"))
+
+    # --- Fonction interne pour traiter les ZIP ---
+    def process_zip(zip_path, source_user):
         created_count = 0
         try:
             with zipfile.ZipFile(zip_path, "r") as zf:
                 for f in zf.namelist():
-                    if f.lower().endswith(('.gb', '.gbk')):
+                    if f.lower().endswith((".gb", ".gbk")):
                         with zf.open(f) as gb_file:
-                            text_stream = TextIOWrapper(gb_file, encoding='utf-8')
+                            text_stream = TextIOWrapper(gb_file, encoding="utf-8")
                             record = SeqIO.read(text_stream, "genbank")
 
                             if Plasmide.objects.filter(name=record.name, dossier="public").exists():
@@ -1640,18 +1669,17 @@ def make_public_bulk(request):
                                 organism=record.annotations.get("organism", ""),
                                 length=len(record.seq),
                                 sequence=str(record.seq),
-                                features={"raw": [f.qualifiers for f in record.features]}
+                                features={"raw": [f.qualifiers for f in record.features]},
                             )
 
-                            # ---- Création PublicationRequest ----
                             PublicationRequest.objects.create(
                                 plasmid_name=plasmide.name,
-                                requested_by=campaign.user if campaign.user else None,
+                                requested_by=source_user,
                                 campaign=campaign,
-                                status="approved",
                                 reviewed_by=request.user,
+                                status="approved",
                                 reviewed_at=timezone.now(),
-                                notified=False
+                                notified=False,
                             )
 
                             created_count += 1
@@ -1659,19 +1687,28 @@ def make_public_bulk(request):
             messages.error(request, f"Erreur lors de l'import depuis {zip_path} : {e}")
         return created_count
 
+    # --- Appliquer selon la source ---
     total_created = 0
-    if campaign.plasmid_archive:
-        total_created += process_zip(campaign.plasmid_archive.path)
-    if campaign.result_file:
-        total_created += process_zip(campaign.result_file.path)
+    if campaign:
+        source_user = campaign.user
+        if campaign.plasmid_archive:
+            total_created += process_zip(campaign.plasmid_archive.path, source_user)
+        if campaign.result_file:
+            total_created += process_zip(campaign.result_file.path, source_user)
+    elif collection:
+        source_user = collection.user
+        if collection.plasmid_archive:
+            total_created += process_zip(collection.plasmid_archive.path, source_user)
 
+    # --- Retour utilisateur ---
     if total_created > 0:
-        messages.success(request, f"{total_created} plasmide(s) rendus publics et PublicationRequests créées.")
+        messages.success(
+            request, f"{total_created} plasmide(s) rendus publics et PublicationRequests créées."
+        )
     else:
         messages.info(request, "Aucun plasmide nouveau à rendre public.")
 
     return redirect(request.META.get("HTTP_REFERER"))
-
 
 def download_plasmid(request):
     plasmid_name = request.GET.get("plasmid_name")

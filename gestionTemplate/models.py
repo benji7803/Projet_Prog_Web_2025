@@ -73,6 +73,7 @@ class PlasmidCollection(models.Model):
     plasmides = models.ManyToManyField('Plasmide', blank=True, related_name='collections', help_text="Plasmides parsés depuis cette collection")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField("Public ?", default=False)
 
     def __str__(self):
         return f"{self.name} ({self.user.username})"
@@ -80,7 +81,7 @@ class PlasmidCollection(models.Model):
 
 class MappingTemplate(models.Model):
     """Stocke un fichier de correspondance réutilisable pour un utilisateur"""
-    name = models.CharField("Nom du fichier de correspondance", max_length=200)
+    name = models.CharField("Nom du fichier de correspondance", max_length=200, unique =True)
     description = models.TextField("Description", blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='mapping_templates')
     mapping_file = models.FileField(upload_to='user_mapping_templates/', help_text="Fichier CSV/Excel original de correspondance")
@@ -263,12 +264,10 @@ class Campaign(models.Model):
         return f"{self.name} ({self.pk})"
 
 from django.db import models
-from django.conf import settings  # ✅ pour AUTH_USER_MODEL
-
-from django.conf import settings
 
 class PublicationRequest(models.Model):
     campaign = models.ForeignKey("Campaign", on_delete=models.CASCADE, null=True, blank=True)
+    collection = models.ForeignKey("PlasmidCollection", on_delete=models.CASCADE, null=True, blank=True)    
     plasmid_name = models.CharField(max_length=255, blank=True, null=True)
     table = models.ForeignKey(
         "MappingTemplate",

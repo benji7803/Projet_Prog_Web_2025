@@ -1832,18 +1832,6 @@ def template_search(request):
         'filter_type': filter_type,
     })
 
-
-def download_template(request, template_id):
-    template = get_object_or_404(CampaignTemplate, pk=template_id)
-    if not template.template_file:
-        return HttpResponse("Fichier non disponible.", status=404)
-
-    response = FileResponse(open(template.template_file.path, 'rb'))
-    ext = template.template_file.name.split('.')[-1]
-    response['Content-Disposition'] = f'attachment; filename="{template.name}.{ext}"'
-    return response
-
-
 def request_table_public(request):
     if request.method == "POST" and request.user.is_authenticated:
         table_id = request.POST.get("table_id")

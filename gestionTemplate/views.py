@@ -9,6 +9,7 @@ from django.forms import inlineformset_factory
 from django.db import transaction
 from django.contrib import messages
 from django.utils import timezone
+from django.db.models import Q
 
 
 from .models import CampaignTemplate, Campaign, ColumnTemplate, PlasmidCollection, MappingTemplate, Plasmide, PublicationRequest, CorrespondanceTable
@@ -41,11 +42,14 @@ import insillyclo.simulator
 # Dashboard : Lister TOUS les templates (public)
 def dashboard(request):
     if request.user.is_authenticated:
-        # Récupérer tous les templates (privés et publics)
-        liste_templates = CampaignTemplate.objects.filter(user=request.user).order_by('-created_at')
+        # Récupérer les templates privés de l'utilisateur ET les templates publics
+        liste_templates = CampaignTemplate.objects.filter(
+            Q(user=request.user) | Q(isPublic=True)
+        ).order_by('-created_at')
         previous_sim = Campaign.objects.filter(user=request.user).order_by('-created_at')
     else:
-        liste_templates = CampaignTemplate.objects.filter(user=None).order_by('-created_at')
+        # Utilisateur non authentifié : ne montrer que les templates publics
+        liste_templates = CampaignTemplate.objects.filter(isPublic=True).order_by('-created_at')
         previous_sim = None
     
 

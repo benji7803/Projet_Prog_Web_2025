@@ -20,14 +20,13 @@
         {% csrf_token %}
 
         <!-- Champs cachés -->
-        <input type="hidden" id="template_existing" name="template_existing" value="">
         <input type="hidden" id="plasmid_collection_id" name="plasmid_collection_id" value="">
         <input type="hidden" id="mapping_template_id" name="mapping_template_id" value="">
 
         <!-- === 1. TEMPLATE PRINCIPAL === -->
         <section class="collapse-container">
             <div class="collapse-header">
-                <h3>1. Fichier Template Principal</h3>
+                <h3>1. Fichier de Campagne</h3>
                 <span class="collapse-toggle">▼</span>
             </div>
             <div class="collapse-body">
@@ -36,17 +35,6 @@
                         <label>Uploader un fichier Excel (.xlsx)</label>
                         {{ form.template_file }}
                     </div>
-                    {% if user.is_authenticated and existing_templates %}
-                    <div class="form-group">
-                        <label>Ou utiliser un fichier existant</label>
-                        <select id="template_select" class="form-select" onchange="selectTemplate(this.value)">
-                            <option value="">-- Aucun --</option>
-                            {% for template in existing_templates %}
-                                <option value="{{ template.id }}">{{ template.name }} ({{ template.created_at|date:'d/m/Y H:i' }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </section>
@@ -157,7 +145,6 @@ document.querySelectorAll(".collapse-header").forEach(header => {
     });
 });
 
-function selectTemplate(id) { document.getElementById('template_existing').value = id || ''; }
 function selectCollection(id) { document.getElementById('plasmid_collection_id').value = id || ''; }
 function selectMapping(id) { document.getElementById('mapping_template_id').value = id || ''; }
 
@@ -165,10 +152,9 @@ document.getElementById("simulation-form").addEventListener("submit", function(e
     const tFile = document.getElementById("id_template_file");
     const pFile = document.getElementById("id_plasmids_zip");
     const mFile = document.getElementById("id_mapping_file");
-    const tId = document.getElementById("template_existing").value;
     const pId = document.getElementById("plasmid_collection_id").value;
     const mId = document.getElementById("mapping_template_id").value;
-    if (!tFile.value && !tId) { alert("Veuillez sélectionner un fichier de template."); e.preventDefault(); }
+    if (!tFile.value) { alert("Veuillez sélectionner un fichier de template."); e.preventDefault(); }
     if (!pFile.value && !pId) { alert("Veuillez sélectionner une archive de plasmides."); e.preventDefault(); }
     if (!mFile.value && !mId) { alert("Veuillez sélectionner un fichier de correspondance."); e.preventDefault(); }
 });

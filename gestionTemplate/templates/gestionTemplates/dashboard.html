@@ -69,9 +69,14 @@
                                     <a href="{% url 'templates:edit_template' t.id %}" class="btn-icon btn-warning" title="Modifier">
                                         Modifier
                                     </a>
-                                    <a href="{% url 'templates:simulate' %}" class="btn-icon btn-primary" title="Simuler">
-                                        Simuler
-                                    </a>
+                                    {% if user.is_authenticated %}
+                                        <form method="post" action="{% url 'templates:publier' t.id %}" style="display: inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn-icon btn-primary" title="Publier">
+                                                Publier
+                                            </button>
+                                        </form>
+                                    {% endif %}
                                     {% if t.isPublic %}
                                         <span class="status-badge done">Public</span>
                                     {% endif %}

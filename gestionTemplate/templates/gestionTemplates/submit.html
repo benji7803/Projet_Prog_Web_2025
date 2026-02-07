@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="container mt-5 mb-5">
-    <h1 class="mb-4 text-center">Soumettre un Template de Simulation</h1>
+    <h1 class="mb-4 text-center">Enregistrer Collections de plasmides & Tables de Correspondance</h1>
 
     {% if message %}
         <div class="alert alert-info alert-dismissible fade show" role="alert">
@@ -13,43 +13,10 @@
         </div>
     {% endif %}
 
-    <!-- ===== PUBLICATION 1: FICHIER EXCEL PRINCIPAL ===== -->
-    <div class="card mb-5 shadow-lg border-0">
-        <div class="card-header bg-primary text-white py-3">
-            <h3 class="mb-0"><span class="badge bg-white text-primary me-2">1: </span>Fichier Template Principal</h3>
-        </div>
-        <div class="card-body p-4">
-            <p class="text-muted mb-4">Uploadez votre fichier de campagne (.xlsx) contenant la configuration de base pour la simulation</p>
-            <form method="POST" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label for="file-upload" class="form-label fw-bold">Fichier Excel (.xlsx) *</label>
-                    <input type="file" id="file-upload" name="uploaded_file" class="form-control form-control-lg" accept=".xlsx" required>
-                    <small class="text-muted d-block mt-2">Sélectionnez votre fichier de configuration</small>
-                </div>
-
-                {% if user.is_authenticated %}
-                <div class="mb-3 form-check">
-                    <input type="checkbox" id="publish-template" name="publish_template" class="form-check-input">
-                    <label for="publish-template" class="form-check-label fw-bold">Rendre public</label>
-                </div>
-                <div class="mb-3">
-                    <label for="publish-name" class="form-label small">Nom public (optionnel)</label>
-                    <input type="text" id="publish-name" name="publish_name" class="form-control" placeholder="Nom du template public (optionnel)">
-                </div>
-                {% endif %}
-
-                <button type="submit" class="btn btn-primary btn-lg">
-                    Publier ce template
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <!-- ===== PUBLICATION 2: COLLECTION DE PLASMIDES ===== -->
+    <!-- ===== PUBLICATION 1: COLLECTION DE PLASMIDES ===== -->
     <div class="card mb-5 shadow-lg border-0">
         <div class="card-header bg-success text-white py-3">
-            <h3 class="mb-0"><span class="badge bg-white text-success me-2">2: </span>Collection de Plasmides</h3>
+            <h3 class="mb-0"><span class="badge bg-white text-success me-2">1: </span>Collection de Plasmides</h3>
         </div>
         <div class="card-body p-4">
             {% if user.is_authenticated %}
@@ -155,11 +122,11 @@
         </div>
     </div>
 
-    <!-- ===== PUBLICATION 3: FICHIER DE CORRESPONDANCE ===== -->
+    <!-- ===== PUBLICATION 2: TABLE DE CORRESPONDANCE ===== -->
     {% if user.is_authenticated %}
     <div class="card mb-5 shadow-lg border-0">
         <div class="card-header bg-info text-white py-3">
-            <h3 class="mb-0"><span class="badge bg-white text-info me-2">3: </span>Fichier de Correspondance</h3>
+            <h3 class="mb-0"><span class="badge bg-white text-info me-2">2: </span>Table de Correspondance</h3>
         </div>
         <div class="card-body p-4">
             <div class="row">

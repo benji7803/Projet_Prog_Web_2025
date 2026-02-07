@@ -1412,6 +1412,7 @@ def publier_template(request, template_id):
     public.separator_sortie = original.separator_sortie
     public.isPublic = True
     public.user = None
+    public.uploaded_by = request.user
     public.team = None
     public.save()
 

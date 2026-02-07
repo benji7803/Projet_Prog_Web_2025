@@ -15,7 +15,8 @@ class CampaignTemplate(models.Model):
     description = models.TextField("Description", blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='private_user')
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='public_user')
     team = models.ForeignKey('users.Equipe', on_delete=models.CASCADE, null=True, blank=True)
     restriction_enzyme = models.CharField(
         max_length=10, 

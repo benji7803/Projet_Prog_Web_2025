@@ -42,7 +42,7 @@ def user_profile(request):
     teams = request.user.equipes_membres.all()
     plasmid_collections = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
     mapping_templates = MappingTemplate.objects.filter(user=request.user).order_by('-created_at')
-    published_templates = CampaignTemplate.objects.filter(user=request.user, isPublic=True).order_by('-created_at')
+    published_templates = CampaignTemplate.objects.filter(uploaded_by=request.user, isPublic=True).order_by('-created_at')
     
     return render(request, 'users/profile.html', {
         'teams': teams,

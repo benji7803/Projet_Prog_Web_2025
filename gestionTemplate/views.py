@@ -146,6 +146,9 @@ def process_template(file, user=None, is_public=False):
 def edit_template(request, template_id):
     
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    if campaign.isPublic and (not request.user.isAdministrator):
+        messages.error(request, "Vous n'avez pas la permission de modifier ce template public.")
+        return redirect('templates:dashboard')
 
     if request.method == 'POST':
         form = CampaignTemplateForm(request.POST, instance=campaign)

@@ -92,6 +92,7 @@ def create_template(request):
                 parent.save()
                 formset.instance = parent
                 formset.save()
+                messages.success(request, f"Template '{parent.name}' créé avec succès.")
             return redirect('templates:dashboard')
         
     else:
@@ -149,6 +150,9 @@ def process_template(file, user=None, is_public=False):
 def edit_template(request, template_id):
     
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
+    if campaign.isPublic and (not request.user.isAdministrator):
+        messages.error(request, "Vous n'avez pas la permission de modifier ce template public.")
+        return redirect('templates:dashboard')
 
     if request.method == 'POST':
         form = CampaignTemplateForm(request.POST, instance=campaign)
@@ -161,6 +165,7 @@ def edit_template(request, template_id):
                 parent.save()
                 formset.instance = parent
                 formset.save()
+                messages.success(request, f"Template '{parent.name}' mis à jour avec succès.")
             return redirect('templates:dashboard')
         
     else:
@@ -694,12 +699,14 @@ def make_zipfile(source_dir, output_filename):
 def delete_template(request, template_id):
     campaign = get_object_or_404(CampaignTemplate, id=template_id)
     campaign.delete()
+    messages.success(request, f"Template '{campaign.name}' supprimé avec succès.")
     return redirect('templates:dashboard')
 
 
 def delete_campaign(request, campaign_id):
     campaign = get_object_or_404(Campaign, id=campaign_id)
     campaign.delete()
+    messages.success(request, f"Campagne '{campaign.name}' supprimée avec succès.")
     return redirect('templates:dashboard')
 
 
@@ -1392,6 +1399,7 @@ def import_public_templates(request, template_id):
     context = {
         'liste_templates': liste_templates,
     }
+    messages.success(request, f"Template '{original.name}' importé avec succès dans vos templates privés.")
 
     return render(request, 'gestionTemplates/dashboard.html', context)
 

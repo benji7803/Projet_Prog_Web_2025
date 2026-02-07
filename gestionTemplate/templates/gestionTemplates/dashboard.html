@@ -66,9 +66,11 @@
                                     <a href="{% url 'templates:download_template' t.id %}" class="btn-icon btn-info" title="Télécharger">
                                         Télécharger
                                     </a>
-                                    <a href="{% url 'templates:edit_template' t.id %}" class="btn-icon btn-warning" title="Modifier">
-                                        Modifier
-                                    </a>
+                                    {% if not t.isPublic or user.is_authenticated %}
+                                        <a href="{% url 'templates:edit_template' t.id %}" class="btn-icon btn-warning" title="Modifier">
+                                            Modifier
+                                        </a>
+                                    {% endif %}
                                     {% if user.is_authenticated %}
                                         <form method="post" action="{% url 'templates:publier' t.id %}" style="display: inline;">
                                             {% csrf_token %}

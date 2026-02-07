@@ -69,9 +69,14 @@ def dashboard(request):
 
     if request.user.is_authenticated:
         # Récupérer les templates privés de l'utilisateur ET les templates publics
-        liste_templates = CampaignTemplate.objects.filter(
-            Q(user=request.user) | Q(isPublic=True)
-        ).order_by('-created_at')
+        if request.user.isAdministrator:
+            liste_templates = CampaignTemplate.objects.filter(
+                Q(user=request.user) | Q(isPublic=True)
+            ).order_by('-created_at')
+        else:
+            liste_templates = CampaignTemplate.objects.filter(
+                Q(user=request.user)
+            ).order_by('-created_at')
         previous_sim = Campaign.objects.filter(user=request.user).order_by('-created_at')
         anonymous_template_ids = []
     else:
@@ -1470,6 +1475,10 @@ def publier_template(request, template_id):
     # Ensure the user owns the template
     original = get_object_or_404(CampaignTemplate, id=template_id, user=request.user)
 
+    if original.isPublic:
+        messages.error(request, "Seuls les templates privés peuvent être publiés. Veuillez d'abord importer le template si ce n'est pas déjà fait.")
+        return redirect('templates:dashboard')
+    
     # Create a public copy so the user's private template remains unchanged
     old_columns = list(original.columns.all())
 

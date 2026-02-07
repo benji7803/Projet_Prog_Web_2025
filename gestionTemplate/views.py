@@ -228,6 +228,10 @@ def edit_template(request, template_id):
 def download_template(request, template_id):
     template = get_object_or_404(CampaignTemplate, id=template_id)
 
+    if not template.user == request.user and not request.user.isAdministrator:
+        messages.error(request, "Vous n'avez pas la permission de télécharger ce template.")
+        return redirect('templates:dashboard')
+
     # Récupérer les colonnes du template
     columns = template.columns.all()
     

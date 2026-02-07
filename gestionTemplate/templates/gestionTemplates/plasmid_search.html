@@ -231,6 +231,7 @@
                                                             <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td>
                                                             <td class="border px-2 py-1">{{ p.length|default:"-" }}</td>
                                                             <td class="border px-2 py-1 flex gap-1 flex-wrap">
+                                                                
                                                                 <a href="{% url 'templates:download_single_plasmid' item.collection.id p.name %}" class="btn btn-sm btn-primary">
                                                                     Télécharger
                                                                 </a>

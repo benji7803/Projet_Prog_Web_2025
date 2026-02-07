@@ -1222,7 +1222,7 @@ def plasmid_search(request):
         # -------------------------------
         # Collections personnelles
         # -------------------------------
-        my_collections_qs = Seqcollection.objects.filter(uploaded_by=request.user).order_by('-created_at')
+        my_collections_qs = PlasmidCollection.objects.filter(user=request.user).order_by('-created_at')
         collections_with_plasmids = []
 
         def extract_plasmids_from_zip(zip_path):
@@ -1250,8 +1250,8 @@ def plasmid_search(request):
 
         for c in my_collections_qs:
             plasmids = []
-            if c.fichier:
-                plasmids = extract_plasmids_from_zip(c.fichier.path)
+            if c.plasmid_archive:
+                plasmids = extract_plasmids_from_zip(c.plasmid_archive.path)
             collections_with_plasmids.append({
                 "collection": c,
                 "plasmids": plasmids

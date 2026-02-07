@@ -164,7 +164,7 @@
                                 <td class="border px-2 py-1">{{ p.organism|default:"-" }}</td> 
                                 <td class="border px-2 py-1">{{ p.length|default:"-" }}</td> 
                                 <td class="border px-2 py-1 flex gap-1 flex-wrap"> 
-                                <a href="{% url 'templates:plasmid_detail' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">Visualiser</a> 
+                                <a href="{% url 'templates:user_view_plasmid' item.campaign.id %}?plasmid={{ p.name|urlencode }}" class="btn btn-sm btn-secondary">Visualiser</a> 
                                 <a href="{% url 'templates:download_plasmid' %}?campaign_id={{ item.campaign.id }}&plasmid_name={{ p.name|urlencode }}" class="btn btn-sm btn-primary">Télécharger</a> 
                                 {% if not p.is_public %}
                                 <form method="post" action="{% url 'templates:make_public' %}" style="display:inline;" onsubmit="return confirm('Voulez-vous vraiment rendre ce plasmide public ?');">

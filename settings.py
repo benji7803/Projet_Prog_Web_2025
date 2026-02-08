@@ -16,8 +16,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # ajoute ici tes apps, ex :
-    # 'plasmid_app',
+    'plasmideAssembly',
+    'users',
+    'gestionTemplate',
+    'django_extensions',
 ]
 
 # --- MIDDLEWARE ---

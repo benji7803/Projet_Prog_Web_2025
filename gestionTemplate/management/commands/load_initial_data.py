@@ -85,20 +85,20 @@ class Command(BaseCommand):
             admin_user.save()
 
         self.stdout.write("\n" + "="*70)
-        self.stdout.write("📦 CHARGEMENT DES DONNÉES")
+        self.stdout.write("CHARGEMENT DES DONNÉES")
         self.stdout.write("="*70)
         
         if created:
             self.stdout.write(
-                self.style.SUCCESS(f"\n✅ Utilisateur admin créé avec succès")
+                self.style.SUCCESS(f"\n Utilisateur admin créé avec succès")
             )
         else:
             self.stdout.write(
-                self.style.WARNING(f"\n⚠️  Utilisateur admin mise à jour")
+                self.style.WARNING(f"\n Utilisateur admin mise à jour")
             )
         
         self.stdout.write(
-            self.style.SUCCESS(f"\n👤 Identifiants de connexion:")
+            self.style.SUCCESS(f"\n Identifiants de connexion:")
         )
         self.stdout.write(f"   Email: {admin_email}")
         self.stdout.write(f"   Mot de passe: {admin_password}")
@@ -114,30 +114,30 @@ class Command(BaseCommand):
             MappingTemplate.objects.all().delete()
             self.stdout.write(
                 self.style.WARNING(
-                    f"🗑️  Données supprimées: {count_p} plasmides, {count_t} templates, {count_m} mappings"
+                    f" Données supprimées: {count_p} plasmides, {count_t} templates, {count_m} mappings"
                 )
             )
             self.stdout.write("")
-        self.stdout.write("1️⃣  Chargement des plasmides GenBank...")
+        self.stdout.write("1️ Chargement des plasmides GenBank...")
         self._load_plasmids(data_dir, admin_user)
 
         # 2. Charger les mappings
-        self.stdout.write("\n2️⃣  Chargement des fichiers de mapping...")
+        self.stdout.write("\n2️ Chargement des fichiers de mapping...")
         self._load_mappings(data_dir, admin_user)
 
         # 3. Charger les simulations (campagnes)
-        self.stdout.write("\n3️⃣  Chargement des simulations...")
+        self.stdout.write("\n3️ Chargement des template...")
         self._load_simulations(data_dir, admin_user)
 
         # 4. Charger les collections de plasmides
-        self.stdout.write("\n4️⃣  Chargement des collections de plasmides...")
+        self.stdout.write("\n4️ Chargement des collections de plasmides...")
         self._load_plasmid_collections(data_dir, admin_user)
 
         self.stdout.write("\n" + "="*70)
-        self.stdout.write(self.style.SUCCESS("✅ Chargement terminé"))
+        self.stdout.write(self.style.SUCCESS(" Chargement terminé"))
         self.stdout.write("="*70)
         self.stdout.write(
-            self.style.SUCCESS(f"\n👤 Vous pouvez maintenant vous connecter avec:")
+            self.style.SUCCESS(f"\n Vous pouvez maintenant vous connecter avec:")
         )
         self.stdout.write(f"   Email: {admin_email}")
         self.stdout.write(f"   Mot de passe: {admin_password}\n")

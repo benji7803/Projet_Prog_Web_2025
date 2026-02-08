@@ -1,7 +1,7 @@
 # Projet_Prog_Web_2025
 Projet Programmation Web, AMI2B
 
-de Benjamin Prehaud, Salah Bouchelagem, Jérémy Caron et Ludovic Senez
+de Benjamin Prehaud, Salah Bouchelaghem, Jérémy Caron et Ludovic Senez
 
 L'URL du git est : https://github.com/benji7803/Projet_Prog_Web_2025
 

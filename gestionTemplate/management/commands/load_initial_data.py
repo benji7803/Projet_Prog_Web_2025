@@ -1,13 +1,15 @@
 import os
 import csv
 import shutil
+import zipfile
+import tempfile
 from pathlib import Path
 from django.core.management.base import BaseCommand
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from gestionTemplate.models import Plasmide, CampaignTemplate, MappingTemplate, PlasmidCollection
-from users.models import Equipe
+from users.models import Equipe, MembreEquipe
 
 User = get_user_model()
 
@@ -103,6 +105,9 @@ class Command(BaseCommand):
         self.stdout.write(f"   Email: {admin_email}")
         self.stdout.write(f"   Mot de passe: {admin_password}")
         self.stdout.write("")
+
+        # Créer une équipe avec l'utilisateur admin
+        self._create_default_team(admin_user)
 
         # Suppression des données si demandé
         if options['clear']:
@@ -340,7 +345,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  ✓ {total_loaded} simulations chargées")
 
     def _load_plasmid_collections(self, data_dir, admin_user):
-        """Charge les collections de plasmides (fichiers zip)"""
+        """Charge les collections de plasmides (fichiers zip) et extrait les plasmides"""
         total_loaded = 0
 
         for root, dirs, files in os.walk(data_dir):
@@ -368,10 +373,15 @@ class Command(BaseCommand):
                                     save=True
                                 )
 
+                        # Extraire et charger les plasmides du ZIP
+                        plasmide_count = self._extract_and_load_plasmids_from_zip(
+                            filepath, collection, collection_name, admin_user
+                        )
+
                         if created:
                             self.stdout.write(
                                 self.style.SUCCESS(
-                                    f"  ✓ {file:35}"
+                                    f"  ✓ {file:35} ({plasmide_count} plasmides)"
                                 )
                             )
                             total_loaded += 1
@@ -388,3 +398,82 @@ class Command(BaseCommand):
                         )
 
         self.stdout.write(f"  ✓ {total_loaded} collections de plasmides chargées")
+
+    def _extract_and_load_plasmids_from_zip(self, zip_filepath, collection, collection_name, admin_user):
+        """Extrait les plasmides d'un fichier ZIP et les ajoute à la collection"""
+        plasmide_count = 0
+
+        try:
+            # Créer un dossier temporaire
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Extraire le ZIP
+                with zipfile.ZipFile(zip_filepath, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
+
+                # Parcourir les fichiers extraits et charger les plasmides .gb
+                for root, dirs, files in os.walk(temp_dir):
+                    for file in sorted(files):
+                        if file.endswith('.gb'):
+                            filepath = os.path.join(root, file)
+
+                            try:
+                                # Créer ou récupérer le plasmide
+                                plasmide = Plasmide.create_from_genbank(
+                                    filepath=filepath,
+                                    dossier_nom=collection_name
+                                )
+
+                                if plasmide.pk:
+                                    # Associer le plasmide à l'utilisateur admin
+                                    plasmide.user = admin_user
+                                    plasmide.save()
+
+                                    # Ajouter le plasmide à la collection
+                                    collection.plasmides.add(plasmide)
+
+                                    plasmide_count += 1
+
+                            except Exception as e:
+                                self.stdout.write(
+                                    self.style.ERROR(
+                                        f"    ✗ {file} - {str(e)[:40]}"
+                                    )
+                                )
+
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(
+                    f"    ✗ Erreur extraction ZIP - {str(e)[:40]}"
+                )
+            )
+
+        return plasmide_count
+
+    def _create_default_team(self, admin_user):
+        """Crée une équipe par défaut avec l'utilisateur admin"""
+        try:
+            # Créer ou récupérer l'équipe par défaut
+            team, created = Equipe.objects.get_or_create(
+                name="Équipe Admin",
+                defaults={
+                    'leader': admin_user,
+                }
+            )
+
+            # Ajouter l'utilisateur admin comme membre s'il n'est pas déjà dans l'équipe
+            if not team.membres.filter(id=admin_user.id).exists():
+                team.membres.add(admin_user)
+
+            if created:
+                self.stdout.write(
+                    self.style.SUCCESS(f"\n✅ Équipe 'Équipe Admin' créée avec {admin_user.email} comme chef")
+                )
+            else:
+                self.stdout.write(
+                    self.style.WARNING(f"\n⚠️  Équipe 'Équipe Admin' déjà existante")
+                )
+
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f"\n❌ Erreur lors de la création de l'équipe: {str(e)}")
+            )

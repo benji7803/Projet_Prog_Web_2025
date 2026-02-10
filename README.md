@@ -16,11 +16,11 @@ source .venv/bin/activate
 
 pip install -r requirements.txt
 
+python3 manage.py migrate
+
 python manage.py import_users
 
 python manage.py import_details
-
-python3 manage.py migrate
 
 python3 ./manage.py runserver
 ```
@@ -36,7 +36,7 @@ Pour visualiser le site web, il suffit de rentrer 127.0.0.1:8000 dans le navigat
 
 Suite à l'initialisation, vous disposez de deux comptes :
 salah@dev.fr MdP:motdepasse123 (Admin)
-benjamin@dev.fr MdP:motdepasse123
+benjamin@dev.fr MdP:pass123
 
 Ces deux comptes font partie d'une même équipe dont la cheffe est Salah
 
